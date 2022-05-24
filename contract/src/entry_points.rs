@@ -4,10 +4,11 @@ use casper_types::{
 };
 
 use crate::constants::{
-    BUY_ORDER_ENTRY_NAME, CANCEL_ORDER_ENTRY_NAME, COLLECTION_RUNTIME_ARG_NAME,
-    CONSTRUCTOR_ENTRY_NAME, CREATE_ORDER_ENTRY_NAME, GET_PURSE_ENTRY_NAME, ORDER_ID_ARG_NAME,
-    OWNER_ARG_NAME, PRICE_RUNTIME_ARG_NAME, SET_TREASURY_WALLET_ENTRY_NAME,
-    TOKEN_ID_RUNTIME_ARG_NAME, TRANSFER_OWNERSHIP_ENTRY_NAME,
+    AMOUNT_RUNTIME_ARG_NAME, BUY_ORDER_ENTRY_NAME, CANCEL_OFFER_ENTRY_NAME,
+    CANCEL_ORDER_ENTRY_NAME, COLLECTION_RUNTIME_ARG_NAME, CONSTRUCTOR_ENTRY_NAME,
+    CREATE_OFFER_ENTRY_NAME, CREATE_ORDER_ENTRY_NAME, GET_PURSE_ENTRY_NAME,
+    ORDER_ID_RUNTIME_ARG_NAME, OWNER_RUNTIME_ARG_NAME, PRICE_RUNTIME_ARG_NAME,
+    SET_TREASURY_WALLET_ENTRY_NAME, TOKEN_ID_RUNTIME_ARG_NAME, TRANSFER_OWNERSHIP_ENTRY_NAME,
 };
 
 /// Returns the `constructor` entry point.
@@ -51,7 +52,7 @@ pub fn create_order() -> EntryPoint {
 pub fn cancel_order() -> EntryPoint {
     EntryPoint::new(
         String::from(CANCEL_ORDER_ENTRY_NAME),
-        vec![Parameter::new(ORDER_ID_ARG_NAME, CLType::U256)],
+        vec![Parameter::new(ORDER_ID_RUNTIME_ARG_NAME, CLType::U256)],
         CLType::Unit,
         EntryPointAccess::Public,
         EntryPointType::Contract,
@@ -62,7 +63,36 @@ pub fn cancel_order() -> EntryPoint {
 pub fn buy_order() -> EntryPoint {
     EntryPoint::new(
         String::from(BUY_ORDER_ENTRY_NAME),
-        vec![Parameter::new(ORDER_ID_ARG_NAME, CLType::U256)],
+        vec![Parameter::new(ORDER_ID_RUNTIME_ARG_NAME, CLType::U256)],
+        CLType::Unit,
+        EntryPointAccess::Public,
+        EntryPointType::Contract,
+    )
+}
+
+/// Returns the `create_offer` entry point.
+pub fn create_offer() -> EntryPoint {
+    EntryPoint::new(
+        String::from(CREATE_OFFER_ENTRY_NAME),
+        vec![
+            Parameter::new(COLLECTION_RUNTIME_ARG_NAME, CLType::Key),
+            Parameter::new(TOKEN_ID_RUNTIME_ARG_NAME, CLType::U256),
+            Parameter::new(AMOUNT_RUNTIME_ARG_NAME, CLType::U512),
+        ],
+        CLType::Unit,
+        EntryPointAccess::Public,
+        EntryPointType::Contract,
+    )
+}
+
+/// Returns the `cancel_offer` entry point.
+pub fn cancel_offer() -> EntryPoint {
+    EntryPoint::new(
+        String::from(CANCEL_OFFER_ENTRY_NAME),
+        vec![
+            Parameter::new(COLLECTION_RUNTIME_ARG_NAME, CLType::Key),
+            Parameter::new(TOKEN_ID_RUNTIME_ARG_NAME, CLType::U256),
+        ],
         CLType::Unit,
         EntryPointAccess::Public,
         EntryPointType::Contract,
@@ -84,7 +114,7 @@ pub fn get_purse() -> EntryPoint {
 pub fn transfer_ownership() -> EntryPoint {
     EntryPoint::new(
         String::from(TRANSFER_OWNERSHIP_ENTRY_NAME),
-        vec![Parameter::new(OWNER_ARG_NAME, CLType::Key)],
+        vec![Parameter::new(OWNER_RUNTIME_ARG_NAME, CLType::Key)],
         CLType::URef,
         EntryPointAccess::Public,
         EntryPointType::Contract,
@@ -99,6 +129,8 @@ pub fn default() -> EntryPoints {
     entry_points.add_entry_point(get_purse());
     entry_points.add_entry_point(create_order());
     entry_points.add_entry_point(cancel_order());
+    entry_points.add_entry_point(create_offer());
+    entry_points.add_entry_point(cancel_offer());
     entry_points.add_entry_point(buy_order());
     entry_points
 }

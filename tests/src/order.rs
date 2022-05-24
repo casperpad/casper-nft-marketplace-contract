@@ -17,7 +17,7 @@ pub struct Order {
 
 impl CLTyped for Order {
     fn cl_type() -> CLType {
-        CLType::ByteArray(32 + 32 + 32 + 32 + 64 + 1)
+        CLType::Any
     }
 }
 

@@ -17,7 +17,7 @@ pub struct Order {
 
 impl CLTyped for Order {
     fn cl_type() -> CLType {
-        CLType::ByteArray(32 + 32 + 32 + 32 + 64 + 1)
+        CLType::Any
     }
 }
 
@@ -37,7 +37,12 @@ impl ToBytes for Order {
 
     #[inline(always)]
     fn serialized_length(&self) -> usize {
-        32 + 32 + 32 + 32 + 64 + 1
+        self.id.serialized_length()
+            + self.collection.serialized_length()
+            + self.token_id.serialized_length()
+            + self.maker.serialized_length()
+            + self.price.serialized_length()
+            + self.price.serialized_length()
     }
 
     fn into_bytes(self) -> Result<Vec<u8>, casper_types::bytesrepr::Error>

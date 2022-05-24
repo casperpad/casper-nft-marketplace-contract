@@ -1,5 +1,6 @@
 extern crate alloc;
 
+mod offer;
 mod order;
 
 mod meta {
@@ -50,7 +51,7 @@ mod tests {
         ContractPackageHash, Key, PublicKey, RuntimeArgs, SecretKey, U256, U512,
     };
 
-    use crate::{meta, order::Order};
+    use crate::{meta, offer::Offer, order::Order};
 
     // KEY NAMES
     const CONTRACT_NAME_KEY_NAME: &str = "casper_nft_marketplace";
@@ -65,13 +66,14 @@ mod tests {
     const COLLECTION_RUNTIME_ARG_NAME: &str = "collection";
     const TOKEN_ID_RUNTIME_ARG_NAME: &str = "token_id";
     const PRICE_RUNTIME_ARG_NAME: &str = "price";
-    const ORDER_ID_ARG_NAME: &str = "order_id";
+    const ORDER_ID_RUNTIME_ARG_NAME: &str = "order_id";
     const OWNER_ARG_NAME: &str = "owner";
-    const AMOUNT_ARG_NAME: &str = "amount";
+    const AMOUNT_RUNTIME_ARG_NAME: &str = "amount";
     const MARKETPLACE_CONTRACT_HASH_ARG_NAME: &str = "marketplace_contract_hash";
 
     const CONTRACT_WASM: &str = "contract.wasm";
     const PRE_BUY_ORDER_CONTRACT_WASM: &str = "pre_buy_order.wasm";
+    const PER_CREATE_OFFER_CONTRACT_WASM: &str = "pre_create_offer.wasm";
     const CEP47_CONTRACT_WASM: &str = "cep47-token.wasm";
 
     const NFT_NAME: &str = "DragonsNFT";
@@ -167,12 +169,10 @@ mod tests {
         (builder, test_context)
     }
 
-    fn account2() -> AccountHash {
-        AccountHash::new([1u8; 32])
-    }
-
-    fn account3() -> AccountHash {
-        AccountHash::new([2u8; 32])
+    fn account(index: u8) -> AccountHash {
+        let secret_key: SecretKey = SecretKey::ed25519_from_bytes([index; 32]).unwrap();
+        let public_key: PublicKey = (&secret_key).into();
+        AccountHash::from(&public_key)
     }
 
     fn get_latest_contract_hash(
@@ -222,7 +222,7 @@ mod tests {
             *DEFAULT_ACCOUNT_ADDR,
             TRANSFER_OWNERSHIP_ENTRY_NAME,
             runtime_args! {
-                OWNER_ARG_NAME => Key::from(account2()),
+                OWNER_ARG_NAME => Key::from(account(0)),
             },
         );
     }
@@ -248,7 +248,7 @@ mod tests {
             *DEFAULT_ACCOUNT_ADDR,
             CANCEL_ORDER_ENTRY_NAME,
             runtime_args! {
-                ORDER_ID_ARG_NAME => U256::from(0)
+                ORDER_ID_RUNTIME_ARG_NAME => U256::from(0)
             },
         );
     }
@@ -258,8 +258,8 @@ mod tests {
             *DEFAULT_ACCOUNT_ADDR,
             PRE_BUY_ORDER_CONTRACT_WASM,
             runtime_args! {
-                ORDER_ID_ARG_NAME => U256::from(0),
-                AMOUNT_ARG_NAME => U512::from(1000).checked_mul(U512::exp10(9)).unwrap(),
+                ORDER_ID_RUNTIME_ARG_NAME => U256::from(0),
+                AMOUNT_RUNTIME_ARG_NAME => U512::from(1000).checked_mul(U512::exp10(9)).unwrap(),
                 MARKETPLACE_CONTRACT_HASH_ARG_NAME => Key::from(context.marketplace_contract)
             },
         )
@@ -278,8 +278,8 @@ mod tests {
             *DEFAULT_ACCOUNT_ADDR,
             BUY_ORDER_ENTRY_NAME,
             runtime_args! {
-                ORDER_ID_ARG_NAME => U256::from(0),
-                AMOUNT_ARG_NAME => U512::from(1000)
+                ORDER_ID_RUNTIME_ARG_NAME => U256::from(0),
+                AMOUNT_RUNTIME_ARG_NAME => U512::from(1000)
             },
         );
     }
@@ -322,6 +322,119 @@ mod tests {
                 "token_ids" => vec![U256::from(0)],
             },
         );
+    }
+
+    fn pre_create_offer(
+        builder: &mut InMemoryWasmTestBuilder,
+        context: TestContext,
+        maker: AccountHash,
+        token_id: U256,
+        price: U512,
+    ) {
+        let install_pre_create_offer_contract = ExecuteRequestBuilder::standard(
+            maker,
+            PER_CREATE_OFFER_CONTRACT_WASM,
+            runtime_args! {
+                COLLECTION_RUNTIME_ARG_NAME => Key::from(context.nft_contract_hash),
+                TOKEN_ID_RUNTIME_ARG_NAME => token_id,
+                AMOUNT_RUNTIME_ARG_NAME => price,
+                MARKETPLACE_CONTRACT_HASH_ARG_NAME => Key::from(context.marketplace_contract)
+            },
+        )
+        .build();
+
+        builder
+            .exec(install_pre_create_offer_contract)
+            .expect_success()
+            .commit();
+    }
+
+    fn _create_offer(
+        builder: &mut InMemoryWasmTestBuilder,
+        context: TestContext,
+        maker: AccountHash,
+        token_id: U256,
+        price: U512,
+    ) {
+        call_contract(
+            builder,
+            context.marketplace_contract,
+            maker,
+            "create_offer",
+            runtime_args! {
+                COLLECTION_RUNTIME_ARG_NAME => Key::from(context.nft_contract_hash),
+                TOKEN_ID_RUNTIME_ARG_NAME => token_id,
+                AMOUNT_RUNTIME_ARG_NAME => price
+            },
+        );
+    }
+
+    fn cancel_offer(
+        builder: &mut InMemoryWasmTestBuilder,
+        context: TestContext,
+        maker: AccountHash,
+        token_id: U256,
+    ) {
+        call_contract(
+            builder,
+            context.marketplace_contract,
+            maker,
+            "cancel_offer",
+            runtime_args! {
+                COLLECTION_RUNTIME_ARG_NAME => Key::from(context.nft_contract_hash),
+                TOKEN_ID_RUNTIME_ARG_NAME => token_id,
+
+            },
+        );
+    }
+
+    #[test]
+    fn should_create_offer() {
+        let (mut builder, context) = setup();
+        pre_create_offer(
+            &mut builder,
+            context,
+            *DEFAULT_ACCOUNT_ADDR,
+            U256::zero(),
+            U512::from(2).checked_mul(U512::exp10(9)).unwrap(),
+        );
+
+        pre_create_offer(
+            &mut builder,
+            context,
+            account(2),
+            U256::zero(),
+            U512::from(3).checked_mul(U512::exp10(9)).unwrap(),
+        );
+        let offer: Offer = get_test_result(&mut builder, context.marketplace_contract);
+        println!("{:?}", offer);
+        assert!(offer.bids.len() == 2);
+    }
+
+    #[test]
+    fn should_cancel_offer() {
+        let (mut builder, context) = setup();
+        pre_create_offer(
+            &mut builder,
+            context,
+            *DEFAULT_ACCOUNT_ADDR,
+            U256::zero(),
+            U512::from(2).checked_mul(U512::exp10(9)).unwrap(),
+        );
+
+        pre_create_offer(
+            &mut builder,
+            context,
+            account(2),
+            U256::zero(),
+            U512::from(3).checked_mul(U512::exp10(9)).unwrap(),
+        );
+
+        cancel_offer(&mut builder, context, account(2), U256::zero());
+
+        let offer: Offer = get_test_result(&mut builder, context.marketplace_contract);
+        println!("{:?}", offer);
+        assert!(offer.bids.len() == 1);
     }
 
     #[test]
@@ -377,9 +490,6 @@ mod tests {
 
         create_order(&mut builder, context);
         pre_buy_order(&mut builder, context);
-
-        let balance: U512 = get_test_result(&mut builder, context.marketplace_contract);
-        assert_eq!(balance, U512::zero());
     }
 
     #[test]
@@ -391,17 +501,6 @@ mod tests {
         approve_nft(&mut builder, context);
 
         create_order(&mut builder, context);
-
-        call_contract(
-            &mut builder,
-            context.nft_contract_hash,
-            *DEFAULT_ACCOUNT_ADDR,
-            "transfer",
-            runtime_args! {
-                "recipient" => Key::from(account2()),
-                "token_ids" => vec![U256::from(1)],
-            },
-        );
 
         cancel_order(&mut builder, context);
 

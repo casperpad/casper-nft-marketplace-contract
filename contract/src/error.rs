@@ -23,6 +23,7 @@ pub enum Error {
     NotOwner = 43,
     NotOrderMaker = 44,
     NotValidAmount = 45,
+    BidExist = 46,
     // Contract Error
     InvalidContext = 90,
     KeyAlreadyExists = 91,
@@ -32,6 +33,19 @@ pub enum Error {
 
 impl From<Error> for ApiError {
     fn from(error: Error) -> Self {
-        ApiError::User(error as u16)
+        match error {
+            Error::PermissionDenied => ApiError::PermissionDenied,
+            Error::InsufficientBalance
+            | Error::InsufficientAllowance
+            | Error::NotApproved
+            | Error::NotOwner
+            | Error::NotOrderMaker
+            | Error::NotValidAmount
+            | Error::BidExist
+            | Error::InvalidContext
+            | Error::KeyAlreadyExists
+            | Error::KeyMismatch
+            | Error::Overflow => ApiError::User(error as u16),
+        }
     }
 }

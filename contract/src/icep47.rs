@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 use alloc::vec::Vec;
 use casper_contract::contract_api::runtime;
 use casper_types::{runtime_args, ContractHash, Key, RuntimeArgs, U256};

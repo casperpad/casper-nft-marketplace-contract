@@ -20,14 +20,15 @@ use casper_types::{
     ContractPackageHash, Key, RuntimeArgs, URef, U256, U512,
 };
 use constants::{
-    AMOUNT_ARG_NAME, COLLECTION_RUNTIME_ARG_NAME, CONSTRUCTOR_ENTRY_NAME, CONTRACT_NAME_KEY_NAME,
-    FEE_ARG_NAME, FEE_KEY_NAME, ORDERS_KEY_NAME, ORDER_ID_ARG_NAME, OWNER_KEY_NAME,
-    OWNER_RUNTIME_ARG_NAME, PRICE_RUNTIME_ARG_NAME, PURSE_BALANCE_KEY_NAME,
-    TOKEN_ID_RUNTIME_ARG_NAME, TREASURY_WALLET_KEY_NAME,
+    AMOUNT_RUNTIME_ARG_NAME, COLLECTION_RUNTIME_ARG_NAME, CONSTRUCTOR_ENTRY_NAME,
+    CONTRACT_NAME_KEY_NAME, FEE_KEY_NAME, FEE_RUNTIME_ARG_NAME, ORDERS_KEY_NAME,
+    ORDER_ID_RUNTIME_ARG_NAME, OWNER_KEY_NAME, OWNER_RUNTIME_ARG_NAME, PRICE_RUNTIME_ARG_NAME,
+    PURSE_BALANCE_KEY_NAME, TOKEN_ID_RUNTIME_ARG_NAME, TREASURY_WALLET_KEY_NAME,
 };
 use detail::store_result;
 use error::Error;
 use icep47::ICEP47;
+use offer::{Bid, Offer};
 use order::Order;
 
 mod address;
@@ -37,6 +38,8 @@ mod entry_points;
 mod error;
 mod fee;
 mod icep47;
+mod offer;
+mod offers;
 mod order;
 mod orders;
 mod owner;
@@ -68,7 +71,7 @@ pub extern "C" fn set_treasury_wallet() {
 #[no_mangle]
 pub extern "C" fn set_fee() {
     owner::only_owner();
-    let fee: U512 = runtime::get_named_arg(FEE_ARG_NAME);
+    let fee: U512 = runtime::get_named_arg(FEE_RUNTIME_ARG_NAME);
     fee::write_fee(fee);
 }
 
@@ -133,8 +136,11 @@ pub extern "C" fn create_order() {
 }
 
 #[no_mangle]
+pub extern "C" fn change_order_price() {}
+
+#[no_mangle]
 pub extern "C" fn cancel_order() {
-    let order_id: U256 = runtime::get_named_arg(ORDER_ID_ARG_NAME);
+    let order_id: U256 = runtime::get_named_arg(ORDER_ID_RUNTIME_ARG_NAME);
     let mut order = orders::read_order(order_id);
     let caller = runtime::get_caller();
     if caller != order.maker {
@@ -150,21 +156,10 @@ pub extern "C" fn cancel_order() {
 
 #[no_mangle]
 pub extern "C" fn buy_order() {
-    let amount: U512 = runtime::get_named_arg(AMOUNT_ARG_NAME);
-    let order_id: U256 = runtime::get_named_arg(ORDER_ID_ARG_NAME);
-    let purse: URef = purse::get_main_purse();
-    let new_purse_balance = system::get_purse_balance(purse).unwrap_or_default();
-    let old_purse_balance = purse::read_purse_balance();
+    let amount: U512 = runtime::get_named_arg(AMOUNT_RUNTIME_ARG_NAME);
+    let order_id: U256 = runtime::get_named_arg(ORDER_ID_RUNTIME_ARG_NAME);
 
-    if !old_purse_balance
-        .checked_add(amount)
-        .unwrap_or_revert()
-        .eq(&new_purse_balance)
-    {
-        // buy_order is called directly
-        runtime::revert(Error::PermissionDenied);
-    }
-
+    let _ = purse::checked_balance();
     let mut order = orders::read_order(order_id);
     if !amount.eq(&order.price) {
         runtime::revert(Error::NotValidAmount);
@@ -194,29 +189,90 @@ pub extern "C" fn buy_order() {
         .unwrap_or_revert();
     let treasury_wallet = treasury_wallet::read_treasury_wallet();
 
-    system::transfer_from_purse_to_account(
-        purse,
-        order.maker,
-        transfer_amount_to_order_maker,
-        None,
-    )
-    .unwrap_or_revert();
-    system::transfer_from_purse_to_account(
-        purse,
-        treasury_wallet,
-        transfer_amount_to_treasury_wallet,
-        None,
-    )
-    .unwrap();
-
-    // After transfer save updated purse balance
-    let new_purse_balance = system::get_purse_balance(purse).unwrap_or_default();
-    purse::write_purse_balance(new_purse_balance);
+    purse::transfer(order.maker, transfer_amount_to_order_maker);
+    purse::transfer(treasury_wallet, transfer_amount_to_treasury_wallet);
 
     order.is_active = false;
     orders::write_order(order);
+}
 
-    store_result(new_purse_balance);
+#[no_mangle]
+pub extern "C" fn create_offer() {
+    let _ = purse::checked_balance();
+    let collection: ContractHash = {
+        let collection_key: Key = runtime::get_named_arg(COLLECTION_RUNTIME_ARG_NAME);
+        ContractHash::new(collection_key.into_hash().unwrap())
+    };
+    let token_id: U256 = runtime::get_named_arg(TOKEN_ID_RUNTIME_ARG_NAME);
+    let maker = runtime::get_caller();
+    let price: U512 = runtime::get_named_arg(AMOUNT_RUNTIME_ARG_NAME);
+    let offer_time = u64::from(runtime::get_blocktime());
+
+    let bid = Bid {
+        maker,
+        price,
+        offer_time,
+    };
+
+    match offers::read_offer(collection, token_id) {
+        Some(mut offer) => {
+            if offer.is_exist_bid(&bid) {
+                runtime::revert(Error::BidExist);
+            }
+
+            if let Some(index) = offer.get_bid_index_by_account(maker) {
+                offer.bids.remove(index);
+            }
+
+            // add bid to exist offer
+            offer.bids.push(bid);
+            store_result(offer.clone());
+            offers::write_offer(offer);
+        }
+        None => {
+            let is_active = true;
+
+            let first_offer = Offer {
+                collection,
+                token_id,
+                bids: vec![bid],
+                is_active,
+            };
+
+            store_result(first_offer.clone());
+            offers::write_offer(first_offer);
+        }
+    };
+}
+
+#[no_mangle]
+pub extern "C" fn cancel_offer() {
+    let collection: ContractHash = {
+        let collection_key: Key = runtime::get_named_arg(COLLECTION_RUNTIME_ARG_NAME);
+        ContractHash::new(collection_key.into_hash().unwrap())
+    };
+    let token_id: U256 = runtime::get_named_arg(TOKEN_ID_RUNTIME_ARG_NAME);
+    let maker = runtime::get_caller();
+
+    match offers::read_offer(collection, token_id) {
+        Some(mut offer) => match offer.get_bid_index_by_account(maker) {
+            Some(index) => {
+                let bid = offer.bids.get(index).unwrap();
+                //Refund
+                purse::transfer(bid.maker, bid.price);
+                offer.bids.remove(index);
+                store_result(offer.clone());
+                offers::write_offer(offer);
+            }
+            None => runtime::revert(Error::PermissionDenied),
+        },
+        None => runtime::revert(Error::PermissionDenied),
+    };
+}
+
+#[no_mangle]
+pub extern "C" fn accept_offer() {
+    let offer_id: u8 = runtime::get_named_arg("name");
 }
 
 #[no_mangle]

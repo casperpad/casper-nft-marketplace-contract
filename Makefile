@@ -9,6 +9,7 @@ test: build-contract
 	mkdir -p tests/wasm
 	cp contract/target/wasm32-unknown-unknown/release/contract.wasm tests/wasm
 	cp contract/target/wasm32-unknown-unknown/release/pre_buy_order.wasm tests/wasm
+	cp contract/target/wasm32-unknown-unknown/release/pre_create_offer.wasm tests/wasm
 	cd tests && cargo test
 
 clippy:
