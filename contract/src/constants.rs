@@ -14,6 +14,7 @@ pub const COLLECTION_RUNTIME_ARG_NAME: &str = "collection";
 pub const TOKEN_ID_RUNTIME_ARG_NAME: &str = "token_id";
 pub const PRICE_RUNTIME_ARG_NAME: &str = "price";
 pub const ORDER_ID_RUNTIME_ARG_NAME: &str = "order_id";
+pub const BID_ID_RUNTIME_ARG_NAME: &str = "bid_id";
 pub const FEE_RUNTIME_ARG_NAME: &str = "fee";
 pub const AMOUNT_RUNTIME_ARG_NAME: &str = "amount";
 // ENTRY POINT NAMES
@@ -24,5 +25,6 @@ pub const CANCEL_ORDER_ENTRY_NAME: &str = "cancel_order";
 pub const BUY_ORDER_ENTRY_NAME: &str = "buy_order";
 pub const CREATE_OFFER_ENTRY_NAME: &str = "create_offer";
 pub const CANCEL_OFFER_ENTRY_NAME: &str = "cancel_offer";
+pub const ACCEPT_OFFER_ENTRY_NAME: &str = "accept_offer";
 pub const CONSTRUCTOR_ENTRY_NAME: &str = "constructor";
 pub const GET_PURSE_ENTRY_NAME: &str = "get_purse";

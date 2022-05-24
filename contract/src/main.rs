@@ -20,10 +20,11 @@ use casper_types::{
     ContractPackageHash, Key, RuntimeArgs, URef, U256, U512,
 };
 use constants::{
-    AMOUNT_RUNTIME_ARG_NAME, COLLECTION_RUNTIME_ARG_NAME, CONSTRUCTOR_ENTRY_NAME,
-    CONTRACT_NAME_KEY_NAME, FEE_KEY_NAME, FEE_RUNTIME_ARG_NAME, ORDERS_KEY_NAME,
-    ORDER_ID_RUNTIME_ARG_NAME, OWNER_KEY_NAME, OWNER_RUNTIME_ARG_NAME, PRICE_RUNTIME_ARG_NAME,
-    PURSE_BALANCE_KEY_NAME, TOKEN_ID_RUNTIME_ARG_NAME, TREASURY_WALLET_KEY_NAME,
+    AMOUNT_RUNTIME_ARG_NAME, BID_ID_RUNTIME_ARG_NAME, COLLECTION_RUNTIME_ARG_NAME,
+    CONSTRUCTOR_ENTRY_NAME, CONTRACT_NAME_KEY_NAME, FEE_KEY_NAME, FEE_RUNTIME_ARG_NAME,
+    ORDERS_KEY_NAME, ORDER_ID_RUNTIME_ARG_NAME, OWNER_KEY_NAME, OWNER_RUNTIME_ARG_NAME,
+    PRICE_RUNTIME_ARG_NAME, PURSE_BALANCE_KEY_NAME, TOKEN_ID_RUNTIME_ARG_NAME,
+    TREASURY_WALLET_KEY_NAME,
 };
 use detail::store_result;
 use error::Error;
@@ -173,24 +174,7 @@ pub extern "C" fn buy_order() {
     // Send NFT to caller
     ICEP47::new(order.collection).transfer(Key::from(caller), vec![order.token_id]);
     // Send CSPR to order maker and treasury wallet
-    let fee = fee::read_fee();
-    let transfer_amount_to_order_maker = order
-        .price
-        .checked_mul(U512::exp10(3).checked_sub(fee).unwrap_or_revert())
-        .unwrap_or_revert()
-        .checked_div(U512::exp10(3))
-        .unwrap_or_revert();
-
-    let transfer_amount_to_treasury_wallet = order
-        .price
-        .checked_mul(fee)
-        .unwrap_or_revert()
-        .checked_div(U512::exp10(3))
-        .unwrap_or_revert();
-    let treasury_wallet = treasury_wallet::read_treasury_wallet();
-
-    purse::transfer(order.maker, transfer_amount_to_order_maker);
-    purse::transfer(treasury_wallet, transfer_amount_to_treasury_wallet);
+    purse::transfer_with_fee(order.maker, order.price);
 
     order.is_active = false;
     orders::write_order(order);
@@ -272,7 +256,39 @@ pub extern "C" fn cancel_offer() {
 
 #[no_mangle]
 pub extern "C" fn accept_offer() {
-    let offer_id: u8 = runtime::get_named_arg("name");
+    let bid_id: usize = {
+        let id: u8 = runtime::get_named_arg(BID_ID_RUNTIME_ARG_NAME);
+        usize::from(id)
+    };
+    let collection: ContractHash = {
+        let collection_key: Key = runtime::get_named_arg(COLLECTION_RUNTIME_ARG_NAME);
+        ContractHash::new(collection_key.into_hash().unwrap())
+    };
+    let token_id: U256 = runtime::get_named_arg(TOKEN_ID_RUNTIME_ARG_NAME);
+    let caller = runtime::get_caller();
+    let token_owner = ICEP47::new(collection).owner_of(token_id).unwrap();
+    if token_owner != Key::from(caller) {
+        runtime::revert(Error::PermissionDenied);
+    }
+    let mut offer = offers::read_offer(collection, token_id).unwrap_or_revert();
+    let accepted_bid = &offer.bids.get(bid_id).unwrap().clone();
+    // Send cspr to token owner and transfer nft to bidder
+    purse::transfer_with_fee(caller, accepted_bid.price);
+    ICEP47::new(collection).transfer_from(
+        Key::from(caller),
+        Key::from(accepted_bid.maker),
+        vec![token_id],
+    );
+    // for other bidders, refund
+    for bid in &offer.bids {
+        if !bid.eq(accepted_bid) {
+            purse::transfer(bid.maker, bid.price);
+        }
+    }
+    offer.is_active = false;
+
+    store_result(ICEP47::new(collection).owner_of(token_id));
+    offers::write_offer(offer);
 }
 
 #[no_mangle]

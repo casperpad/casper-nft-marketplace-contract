@@ -10,6 +10,7 @@ use crate::{
     constants::{AMOUNT_RUNTIME_ARG_NAME, PURSE_BALANCE_KEY_NAME, PURSE_KEY_NAME},
     detail,
     error::Error,
+    fee, treasury_wallet,
 };
 
 /// Sets main purse which handle CSPR.
@@ -56,6 +57,25 @@ pub(crate) fn transfer(account: AccountHash, amount: U512) {
     let purse: URef = get_main_purse();
     system::transfer_from_purse_to_account(purse, account, amount, None).unwrap_or_revert();
     update_purse_balance();
+}
+/// Send CSPR to account and treasury wallet
+pub(crate) fn transfer_with_fee(account: AccountHash, amount: U512) {
+    let fee = fee::read_fee();
+    let transfer_amount_to_account = amount
+        .checked_mul(U512::exp10(3).checked_sub(fee).unwrap_or_revert())
+        .unwrap_or_revert()
+        .checked_div(U512::exp10(3))
+        .unwrap_or_revert();
+
+    let transfer_amount_to_treasury_wallet = amount
+        .checked_mul(fee)
+        .unwrap_or_revert()
+        .checked_div(U512::exp10(3))
+        .unwrap_or_revert();
+    let treasury_wallet = treasury_wallet::read_treasury_wallet();
+
+    transfer(account, transfer_amount_to_account);
+    transfer(treasury_wallet, transfer_amount_to_treasury_wallet);
 }
 
 pub(crate) fn update_purse_balance() {

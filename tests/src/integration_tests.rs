@@ -70,6 +70,7 @@ mod tests {
     const OWNER_ARG_NAME: &str = "owner";
     const AMOUNT_RUNTIME_ARG_NAME: &str = "amount";
     const MARKETPLACE_CONTRACT_HASH_ARG_NAME: &str = "marketplace_contract_hash";
+    const BID_ID_RUNTIME_ARG_NAME: &str = "bid_id";
 
     const CONTRACT_WASM: &str = "contract.wasm";
     const PRE_BUY_ORDER_CONTRACT_WASM: &str = "pre_buy_order.wasm";
@@ -388,6 +389,26 @@ mod tests {
         );
     }
 
+    fn accept_offer(
+        builder: &mut InMemoryWasmTestBuilder,
+        context: TestContext,
+
+        token_id: U256,
+        bid_id: u8,
+    ) {
+        call_contract(
+            builder,
+            context.marketplace_contract,
+            *DEFAULT_ACCOUNT_ADDR,
+            "accept_offer",
+            runtime_args! {
+                COLLECTION_RUNTIME_ARG_NAME => Key::from(context.nft_contract_hash),
+                TOKEN_ID_RUNTIME_ARG_NAME => token_id,
+                BID_ID_RUNTIME_ARG_NAME => bid_id
+            },
+        );
+    }
+
     #[test]
     fn should_create_offer() {
         let (mut builder, context) = setup();
@@ -435,6 +456,31 @@ mod tests {
         let offer: Offer = get_test_result(&mut builder, context.marketplace_contract);
         println!("{:?}", offer);
         assert!(offer.bids.len() == 1);
+    }
+
+    #[test]
+    fn should_accept_offer() {
+        let (mut builder, context) = setup();
+        pre_create_offer(
+            &mut builder,
+            context,
+            *DEFAULT_ACCOUNT_ADDR,
+            U256::zero(),
+            U512::from(2).checked_mul(U512::exp10(9)).unwrap(),
+        );
+
+        pre_create_offer(
+            &mut builder,
+            context,
+            account(2),
+            U256::zero(),
+            U512::from(3).checked_mul(U512::exp10(9)).unwrap(),
+        );
+        mint_nft(&mut builder, context);
+        approve_nft(&mut builder, context);
+        accept_offer(&mut builder, context, U256::zero(), 1u8);
+        let owner: Option<Key> = get_test_result(&mut builder, context.marketplace_contract);
+        assert!(owner == Some(Key::from(account(2))));
     }
 
     #[test]

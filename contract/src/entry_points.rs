@@ -4,11 +4,12 @@ use casper_types::{
 };
 
 use crate::constants::{
-    AMOUNT_RUNTIME_ARG_NAME, BUY_ORDER_ENTRY_NAME, CANCEL_OFFER_ENTRY_NAME,
-    CANCEL_ORDER_ENTRY_NAME, COLLECTION_RUNTIME_ARG_NAME, CONSTRUCTOR_ENTRY_NAME,
-    CREATE_OFFER_ENTRY_NAME, CREATE_ORDER_ENTRY_NAME, GET_PURSE_ENTRY_NAME,
-    ORDER_ID_RUNTIME_ARG_NAME, OWNER_RUNTIME_ARG_NAME, PRICE_RUNTIME_ARG_NAME,
-    SET_TREASURY_WALLET_ENTRY_NAME, TOKEN_ID_RUNTIME_ARG_NAME, TRANSFER_OWNERSHIP_ENTRY_NAME,
+    ACCEPT_OFFER_ENTRY_NAME, AMOUNT_RUNTIME_ARG_NAME, BID_ID_RUNTIME_ARG_NAME,
+    BUY_ORDER_ENTRY_NAME, CANCEL_OFFER_ENTRY_NAME, CANCEL_ORDER_ENTRY_NAME,
+    COLLECTION_RUNTIME_ARG_NAME, CONSTRUCTOR_ENTRY_NAME, CREATE_OFFER_ENTRY_NAME,
+    CREATE_ORDER_ENTRY_NAME, GET_PURSE_ENTRY_NAME, ORDER_ID_RUNTIME_ARG_NAME,
+    OWNER_RUNTIME_ARG_NAME, PRICE_RUNTIME_ARG_NAME, SET_TREASURY_WALLET_ENTRY_NAME,
+    TOKEN_ID_RUNTIME_ARG_NAME, TRANSFER_OWNERSHIP_ENTRY_NAME,
 };
 
 /// Returns the `constructor` entry point.
@@ -99,6 +100,21 @@ pub fn cancel_offer() -> EntryPoint {
     )
 }
 
+/// Returns the `accept_offer` entry point.
+pub fn accept_offer() -> EntryPoint {
+    EntryPoint::new(
+        String::from(ACCEPT_OFFER_ENTRY_NAME),
+        vec![
+            Parameter::new(COLLECTION_RUNTIME_ARG_NAME, CLType::Key),
+            Parameter::new(TOKEN_ID_RUNTIME_ARG_NAME, CLType::U256),
+            Parameter::new(BID_ID_RUNTIME_ARG_NAME, CLType::U8),
+        ],
+        CLType::Unit,
+        EntryPointAccess::Public,
+        EntryPointType::Contract,
+    )
+}
+
 /// Returns the `get_purse` entry point.
 pub fn get_purse() -> EntryPoint {
     EntryPoint::new(
@@ -131,6 +147,7 @@ pub fn default() -> EntryPoints {
     entry_points.add_entry_point(cancel_order());
     entry_points.add_entry_point(create_offer());
     entry_points.add_entry_point(cancel_offer());
+    entry_points.add_entry_point(accept_offer());
     entry_points.add_entry_point(buy_order());
     entry_points
 }
