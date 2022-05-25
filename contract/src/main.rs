@@ -10,21 +10,22 @@ use alloc::{
     collections::BTreeSet,
     string::{String, ToString},
     vec,
+    vec::Vec,
 };
 use casper_contract::{
     contract_api::{runtime, storage, system},
     unwrap_or_revert::UnwrapOrRevert,
 };
 use casper_types::{
-    account::AccountHash, contracts::NamedKeys, runtime_args, CLValue, ContractHash,
-    ContractPackageHash, Key, RuntimeArgs, URef, U256, U512,
+    account::AccountHash, contracts::NamedKeys, runtime_args, CLValue, ContractHash, Key,
+    RuntimeArgs, URef, U256, U512,
 };
 use constants::{
-    AMOUNT_RUNTIME_ARG_NAME, BID_ID_RUNTIME_ARG_NAME, COLLECTION_RUNTIME_ARG_NAME,
-    CONSTRUCTOR_ENTRY_NAME, CONTRACT_NAME_KEY_NAME, FEE_KEY_NAME, FEE_RUNTIME_ARG_NAME,
-    ORDERS_KEY_NAME, ORDER_ID_RUNTIME_ARG_NAME, OWNER_KEY_NAME, OWNER_RUNTIME_ARG_NAME,
-    PRICE_RUNTIME_ARG_NAME, PURSE_BALANCE_KEY_NAME, TOKEN_ID_RUNTIME_ARG_NAME,
-    TREASURY_WALLET_KEY_NAME,
+    ADMINS_GROUP_NAME, ADMINS_RUNTIME_ARG_NAME, AMOUNT_RUNTIME_ARG_NAME, BID_ID_RUNTIME_ARG_NAME,
+    COLLECTION_RUNTIME_ARG_NAME, CONSTRUCTOR_ENTRY_NAME, CONTRACT_NAME_KEY_NAME, FEE_KEY_NAME,
+    FEE_RUNTIME_ARG_NAME, ORDERS_KEY_NAME, ORDER_ID_RUNTIME_ARG_NAME, OWNER_KEY_NAME,
+    OWNER_RUNTIME_ARG_NAME, PRICE_RUNTIME_ARG_NAME, PURSE_BALANCE_KEY_NAME,
+    TOKEN_ID_RUNTIME_ARG_NAME, TREASURY_WALLET_KEY_NAME,
 };
 use detail::store_result;
 use error::Error;
@@ -57,6 +58,19 @@ pub extern "C" fn transfer_ownership() {
     };
     let owner_uref: URef = owner::owner_uref();
     owner::write_owner_to(owner_uref, new_owner_hash);
+}
+
+#[no_mangle]
+pub extern "C" fn get_access_uref() {
+    let account_hash_str = runtime::get_caller().to_string();
+
+    let account_hash_uref = match runtime::get_key(&account_hash_str) {
+        Some(uref) => uref.into_uref().unwrap(),
+        None => runtime::revert(Error::InvalidContext),
+    };
+
+    let return_value = CLValue::from_t(account_hash_uref).unwrap_or_revert();
+    runtime::ret(return_value)
 }
 
 #[no_mangle]
@@ -308,6 +322,7 @@ pub extern "C" fn get_purse() {
 
 #[no_mangle]
 pub extern "C" fn call() {
+    let (contract_package_hash, _access_uref) = storage::create_contract_package_at_hash();
     // Set Contract owner
     let owner_key: Key = {
         let owner: AccountHash = runtime::get_caller();
@@ -323,7 +338,7 @@ pub extern "C" fn call() {
 
     let fee_key: Key = {
         // Fee decimal is 3 here fee is 2.5%
-        let fee = U512::from(25);
+        let fee = U512::from(25u8);
         let fee_uref: URef = storage::new_uref(fee).into_read_write();
         Key::from(fee_uref)
     };
@@ -333,29 +348,35 @@ pub extern "C" fn call() {
         Key::from(uref)
     };
 
+    let admins: Vec<AccountHash> = runtime::get_named_arg(ADMINS_RUNTIME_ARG_NAME);
+
     let mut named_keys = NamedKeys::new();
     named_keys.insert(OWNER_KEY_NAME.to_string(), owner_key);
     named_keys.insert(ORDERS_KEY_NAME.to_string(), orders_key);
     named_keys.insert(TREASURY_WALLET_KEY_NAME.to_string(), treasury_wallet_key);
     named_keys.insert(FEE_KEY_NAME.to_string(), fee_key);
 
-    let entry_points = entry_points::default();
-    let (contract_hash, _version) = storage::new_contract(
-        entry_points,
-        Some(named_keys),
-        Some(String::from(CONTRACT_NAME_KEY_NAME)),
-        None,
+    let mut admin_group = storage::create_contract_user_group(
+        contract_package_hash,
+        ADMINS_GROUP_NAME,
+        (admins.len() + 1) as u8,
+        Default::default(),
+    )
+    .unwrap();
+
+    named_keys.insert(
+        runtime::get_caller().to_string(),
+        admin_group.pop().unwrap().into(),
     );
 
-    let package_hash: ContractPackageHash = ContractPackageHash::new(
-        runtime::get_key(CONTRACT_NAME_KEY_NAME)
-            .unwrap_or_revert()
-            .into_hash()
-            .unwrap_or_revert(),
-    );
+    for (i, uref) in admin_group.into_iter().enumerate() {
+        named_keys.insert(admins[i].to_string(), uref.into());
+    }
+
+    let entry_points = entry_points::default();
 
     let constructor_access: URef = storage::create_contract_user_group(
-        package_hash,
+        contract_package_hash,
         CONSTRUCTOR_ENTRY_NAME,
         1,
         Default::default(),
@@ -364,10 +385,13 @@ pub extern "C" fn call() {
     .pop()
     .unwrap_or_revert();
 
-    let _: () = runtime::call_contract(contract_hash, CONSTRUCTOR_ENTRY_NAME, runtime_args! {});
+    let (contract_hash, _) =
+        storage::add_contract_version(contract_package_hash, entry_points, named_keys);
+    runtime::put_key(CONTRACT_NAME_KEY_NAME, contract_package_hash.into());
+    runtime::call_contract::<()>(contract_hash, CONSTRUCTOR_ENTRY_NAME, runtime_args! {});
 
     let mut urefs = BTreeSet::new();
     urefs.insert(constructor_access);
-    storage::remove_contract_user_group_urefs(package_hash, CONSTRUCTOR_ENTRY_NAME, urefs)
+    storage::remove_contract_user_group_urefs(contract_package_hash, CONSTRUCTOR_ENTRY_NAME, urefs)
         .unwrap_or_revert();
 }

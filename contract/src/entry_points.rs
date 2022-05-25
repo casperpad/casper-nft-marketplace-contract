@@ -1,15 +1,16 @@
-use alloc::{string::String, vec, vec::Vec};
+use alloc::{string::String, vec};
 use casper_types::{
     CLType, CLTyped, EntryPoint, EntryPointAccess, EntryPointType, EntryPoints, Group, Parameter,
 };
 
 use crate::constants::{
-    ACCEPT_OFFER_ENTRY_NAME, AMOUNT_RUNTIME_ARG_NAME, BID_ID_RUNTIME_ARG_NAME,
+    ACCEPT_OFFER_ENTRY_NAME, ADMINS_GROUP_NAME, AMOUNT_RUNTIME_ARG_NAME, BID_ID_RUNTIME_ARG_NAME,
     BUY_ORDER_ENTRY_NAME, CANCEL_OFFER_ENTRY_NAME, CANCEL_ORDER_ENTRY_NAME,
     COLLECTION_RUNTIME_ARG_NAME, CONSTRUCTOR_ENTRY_NAME, CREATE_OFFER_ENTRY_NAME,
-    CREATE_ORDER_ENTRY_NAME, GET_PURSE_ENTRY_NAME, ORDER_ID_RUNTIME_ARG_NAME,
-    OWNER_RUNTIME_ARG_NAME, PRICE_RUNTIME_ARG_NAME, SET_TREASURY_WALLET_ENTRY_NAME,
-    TOKEN_ID_RUNTIME_ARG_NAME, TRANSFER_OWNERSHIP_ENTRY_NAME,
+    CREATE_ORDER_ENTRY_NAME, GET_ACCESS_UREF_ENTRY_NAME, GET_PURSE_ENTRY_NAME,
+    ORDER_ID_RUNTIME_ARG_NAME, OWNER_RUNTIME_ARG_NAME, PRICE_RUNTIME_ARG_NAME,
+    SET_TREASURY_WALLET_ENTRY_NAME, TOKEN_ID_RUNTIME_ARG_NAME, TRANSFER_OWNERSHIP_ENTRY_NAME,
+    TREASURY_WALLET_RUNTIME_ARG_NAME,
 };
 
 /// Returns the `constructor` entry point.
@@ -27,9 +28,22 @@ pub fn constructor() -> EntryPoint {
 pub fn set_treasury_wallet() -> EntryPoint {
     EntryPoint::new(
         String::from(SET_TREASURY_WALLET_ENTRY_NAME),
-        Vec::new(),
+        vec![Parameter::new(
+            TREASURY_WALLET_RUNTIME_ARG_NAME,
+            CLType::String,
+        )],
         String::cl_type(),
-        EntryPointAccess::Public,
+        EntryPointAccess::Groups(vec![Group::new(ADMINS_GROUP_NAME)]),
+        EntryPointType::Contract,
+    )
+}
+
+pub fn get_access_uref() -> EntryPoint {
+    EntryPoint::new(
+        String::from(GET_ACCESS_UREF_ENTRY_NAME),
+        vec![],
+        CLType::URef,
+        EntryPointAccess::Groups(vec![Group::new(ADMINS_GROUP_NAME)]),
         EntryPointType::Contract,
     )
 }
@@ -149,5 +163,6 @@ pub fn default() -> EntryPoints {
     entry_points.add_entry_point(cancel_offer());
     entry_points.add_entry_point(accept_offer());
     entry_points.add_entry_point(buy_order());
+    entry_points.add_entry_point(get_access_uref());
     entry_points
 }

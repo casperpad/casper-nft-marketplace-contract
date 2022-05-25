@@ -76,6 +76,7 @@ mod tests {
     const PRE_BUY_ORDER_CONTRACT_WASM: &str = "pre_buy_order.wasm";
     const PER_CREATE_OFFER_CONTRACT_WASM: &str = "pre_create_offer.wasm";
     const CEP47_CONTRACT_WASM: &str = "cep47-token.wasm";
+    const AUTHORIZE_ACCOUNT_CONTRACT_WASM: &str = "authorize_account.wasm";
 
     const NFT_NAME: &str = "DragonsNFT";
     const NFT_SYMBOL: &str = "DGNFT";
@@ -108,9 +109,14 @@ mod tests {
 
         builder.run_genesis(&DEFAULT_RUN_GENESIS_REQUEST).commit();
 
-        let install_contract =
-            ExecuteRequestBuilder::standard(*DEFAULT_ACCOUNT_ADDR, CONTRACT_WASM, runtime_args! {})
-                .build();
+        let install_contract = ExecuteRequestBuilder::standard(
+            *DEFAULT_ACCOUNT_ADDR,
+            CONTRACT_WASM,
+            runtime_args! {
+                "admins" => vec![*DEFAULT_ACCOUNT_ADDR,account(0),account(1)]
+            },
+        )
+        .build();
 
         builder.exec(install_contract).expect_success().commit();
 
@@ -216,6 +222,40 @@ mod tests {
         builder.exec(exec_request).expect_success().commit();
     }
 
+    fn authorize_account(
+        builder: &mut InMemoryWasmTestBuilder,
+        context: TestContext,
+        account: AccountHash,
+    ) {
+        let install_contract = ExecuteRequestBuilder::standard(
+            account,
+            AUTHORIZE_ACCOUNT_CONTRACT_WASM,
+            runtime_args! {
+                MARKETPLACE_CONTRACT_HASH_ARG_NAME => Key::from(context.marketplace_contract)
+            },
+        )
+        .build();
+
+        builder.exec(install_contract).expect_success().commit();
+    }
+
+    fn set_treasury_wallet(
+        builder: &mut InMemoryWasmTestBuilder,
+        context: TestContext,
+        caller: AccountHash,
+        treasury_wallet: String,
+    ) {
+        call_contract(
+            builder,
+            context.marketplace_contract,
+            caller,
+            "set_treasury_wallet",
+            runtime_args! {
+                "treasury_wallet" => treasury_wallet,
+            },
+        );
+    }
+
     fn transfer_ownership(builder: &mut InMemoryWasmTestBuilder, context: TestContext) {
         call_contract(
             builder,
@@ -312,7 +352,7 @@ mod tests {
         );
     }
 
-    fn transfer_nft(builder: &mut InMemoryWasmTestBuilder, context: TestContext) {
+    fn _transfer_nft(builder: &mut InMemoryWasmTestBuilder, context: TestContext) {
         call_contract(
             builder,
             context.nft_contract_hash,
@@ -407,6 +447,15 @@ mod tests {
                 BID_ID_RUNTIME_ARG_NAME => bid_id
             },
         );
+    }
+
+    #[test]
+    fn should_set_treasury_wallet() {
+        let (mut builder, context) = setup();
+        let admin = *DEFAULT_ACCOUNT_ADDR;
+        let treasury_wallet = account(1);
+        authorize_account(&mut builder, context, admin);
+        set_treasury_wallet(&mut builder, context, admin, treasury_wallet.to_string());
     }
 
     #[test]

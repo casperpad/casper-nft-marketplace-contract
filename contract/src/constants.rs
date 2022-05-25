@@ -17,6 +17,8 @@ pub const ORDER_ID_RUNTIME_ARG_NAME: &str = "order_id";
 pub const BID_ID_RUNTIME_ARG_NAME: &str = "bid_id";
 pub const FEE_RUNTIME_ARG_NAME: &str = "fee";
 pub const AMOUNT_RUNTIME_ARG_NAME: &str = "amount";
+pub const ADMINS_RUNTIME_ARG_NAME: &str = "admins";
+pub const TREASURY_WALLET_RUNTIME_ARG_NAME: &str = "treasury_wallet";
 // ENTRY POINT NAMES
 pub const TRANSFER_OWNERSHIP_ENTRY_NAME: &str = "transfer_ownership";
 pub const SET_TREASURY_WALLET_ENTRY_NAME: &str = "set_treasury_wallet";
@@ -28,3 +30,7 @@ pub const CANCEL_OFFER_ENTRY_NAME: &str = "cancel_offer";
 pub const ACCEPT_OFFER_ENTRY_NAME: &str = "accept_offer";
 pub const CONSTRUCTOR_ENTRY_NAME: &str = "constructor";
 pub const GET_PURSE_ENTRY_NAME: &str = "get_purse";
+pub const GET_ACCESS_UREF_ENTRY_NAME: &str = "get_access_uref";
+
+// GROUP NAMES
+pub const ADMINS_GROUP_NAME: &str = "admins";

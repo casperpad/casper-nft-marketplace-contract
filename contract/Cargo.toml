@@ -28,7 +28,12 @@ bench = false
 doctest = false
 test = false
 
-
+[[bin]]
+name = "authorize_account"
+path = "src/authorize_account.rs"
+bench = false
+doctest = false
+test = false
 
 [profile.release]
 codegen-units = 1
