@@ -60,13 +60,11 @@ mod tests {
     // ENTRY
     const CREATE_ORDER_ENTRY_NAME: &str = "create_order";
     const CANCEL_ORDER_ENTRY_NAME: &str = "cancel_order";
-    const BUY_ORDER_ENTRY_NAME: &str = "buy_order";
-    const TRANSFER_OWNERSHIP_ENTRY_NAME: &str = "transfer_ownership";
+
     // RUNTIME ARG
     const COLLECTION_RUNTIME_ARG_NAME: &str = "collection";
     const TOKEN_ID_RUNTIME_ARG_NAME: &str = "token_id";
     const PRICE_RUNTIME_ARG_NAME: &str = "price";
-    const OWNER_ARG_NAME: &str = "owner";
     const AMOUNT_RUNTIME_ARG_NAME: &str = "amount";
     const MARKETPLACE_CONTRACT_HASH_ARG_NAME: &str = "marketplace_contract_hash";
     const BID_ID_RUNTIME_ARG_NAME: &str = "bid_id";
@@ -255,14 +253,19 @@ mod tests {
         );
     }
 
-    fn transfer_ownership(builder: &mut InMemoryWasmTestBuilder, context: TestContext) {
+    fn set_fee(
+        builder: &mut InMemoryWasmTestBuilder,
+        context: TestContext,
+        caller: AccountHash,
+        fee: U512,
+    ) {
         call_contract(
             builder,
             context.marketplace_contract,
-            *DEFAULT_ACCOUNT_ADDR,
-            TRANSFER_OWNERSHIP_ENTRY_NAME,
+            caller,
+            "set_fee",
             runtime_args! {
-                OWNER_ARG_NAME => Key::from(account(0)),
+                "fee" => fee,
             },
         );
     }
@@ -281,7 +284,7 @@ mod tests {
             runtime_args! {
                 COLLECTION_RUNTIME_ARG_NAME => Key::from(context.nft_contract_hash),
                 TOKEN_ID_RUNTIME_ARG_NAME => token_id,
-                PRICE_RUNTIME_ARG_NAME => U512::from(1000).checked_mul(U512::exp10(9)).unwrap(),
+                PRICE_RUNTIME_ARG_NAME => price,
             },
         );
     }
@@ -316,20 +319,6 @@ mod tests {
             .exec(install_pre_buy_order_contract)
             .expect_success()
             .commit();
-    }
-
-    fn _buy_order(builder: &mut InMemoryWasmTestBuilder, context: TestContext, token_id: U256) {
-        call_contract(
-            builder,
-            context.marketplace_contract,
-            *DEFAULT_ACCOUNT_ADDR,
-            BUY_ORDER_ENTRY_NAME,
-            runtime_args! {
-                COLLECTION_RUNTIME_ARG_NAME => Key::from(context.nft_contract_hash),
-                TOKEN_ID_RUNTIME_ARG_NAME => token_id,
-                AMOUNT_RUNTIME_ARG_NAME => U512::from(1000)
-            },
-        );
     }
 
     fn mint_nft(builder: &mut InMemoryWasmTestBuilder, context: TestContext) {
@@ -459,10 +448,23 @@ mod tests {
     #[test]
     fn should_set_treasury_wallet() {
         let (mut builder, context) = setup();
-        let admin = *DEFAULT_ACCOUNT_ADDR;
+        let admin = account(1);
         let treasury_wallet = account(1);
         authorize_account(&mut builder, context, admin);
-        set_treasury_wallet(&mut builder, context, admin, treasury_wallet.to_string());
+        set_treasury_wallet(
+            &mut builder,
+            context,
+            admin,
+            treasury_wallet.to_formatted_string(),
+        );
+    }
+
+    #[test]
+    fn should_set_fee() {
+        let (mut builder, context) = setup();
+        let admin = account(1);
+        authorize_account(&mut builder, context, admin);
+        set_fee(&mut builder, context, admin, U512::from(25));
     }
 
     #[test]
@@ -546,8 +548,7 @@ mod tests {
 
     #[test]
     fn should_transfer_ownership() {
-        let (mut builder, context) = setup();
-        transfer_ownership(&mut builder, context);
+        // let (mut builder, context) = setup();
     }
 
     #[test]

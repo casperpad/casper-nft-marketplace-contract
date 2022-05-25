@@ -7,9 +7,9 @@ use crate::constants::{
     ACCEPT_OFFER_ENTRY_NAME, ADMINS_GROUP_NAME, AMOUNT_RUNTIME_ARG_NAME, BID_ID_RUNTIME_ARG_NAME,
     BUY_ORDER_ENTRY_NAME, CANCEL_OFFER_ENTRY_NAME, CANCEL_ORDER_ENTRY_NAME,
     COLLECTION_RUNTIME_ARG_NAME, CONSTRUCTOR_ENTRY_NAME, CREATE_OFFER_ENTRY_NAME,
-    CREATE_ORDER_ENTRY_NAME, GET_ACCESS_UREF_ENTRY_NAME, GET_PURSE_ENTRY_NAME,
-    OWNER_RUNTIME_ARG_NAME, PRICE_RUNTIME_ARG_NAME, SET_TREASURY_WALLET_ENTRY_NAME,
-    TOKEN_ID_RUNTIME_ARG_NAME, TRANSFER_OWNERSHIP_ENTRY_NAME, TREASURY_WALLET_RUNTIME_ARG_NAME,
+    CREATE_ORDER_ENTRY_NAME, FEE_RUNTIME_ARG_NAME, GET_ACCESS_UREF_ENTRY_NAME,
+    GET_PURSE_ENTRY_NAME, PRICE_RUNTIME_ARG_NAME, SET_FEE_ENTRY_NAME,
+    SET_TREASURY_WALLET_ENTRY_NAME, TOKEN_ID_RUNTIME_ARG_NAME, TREASURY_WALLET_RUNTIME_ARG_NAME,
 };
 
 /// Returns the `constructor` entry point.
@@ -37,12 +37,23 @@ pub fn set_treasury_wallet() -> EntryPoint {
     )
 }
 
+/// Returns the `set_fee` entry point.
+pub fn set_fee() -> EntryPoint {
+    EntryPoint::new(
+        String::from(SET_FEE_ENTRY_NAME),
+        vec![Parameter::new(FEE_RUNTIME_ARG_NAME, CLType::U512)],
+        String::cl_type(),
+        EntryPointAccess::Groups(vec![Group::new(ADMINS_GROUP_NAME)]),
+        EntryPointType::Contract,
+    )
+}
+
 pub fn get_access_uref() -> EntryPoint {
     EntryPoint::new(
         String::from(GET_ACCESS_UREF_ENTRY_NAME),
         vec![],
         CLType::URef,
-        EntryPointAccess::Groups(vec![Group::new(ADMINS_GROUP_NAME)]),
+        EntryPointAccess::Public,
         EntryPointType::Contract,
     )
 }
@@ -145,22 +156,11 @@ pub fn get_purse() -> EntryPoint {
     )
 }
 
-/// Returns the `transfer_ownership` entry point.
-pub fn transfer_ownership() -> EntryPoint {
-    EntryPoint::new(
-        String::from(TRANSFER_OWNERSHIP_ENTRY_NAME),
-        vec![Parameter::new(OWNER_RUNTIME_ARG_NAME, CLType::Key)],
-        CLType::URef,
-        EntryPointAccess::Public,
-        EntryPointType::Contract,
-    )
-}
-
 pub fn default() -> EntryPoints {
     let mut entry_points = EntryPoints::new();
     entry_points.add_entry_point(constructor());
-    entry_points.add_entry_point(transfer_ownership());
     entry_points.add_entry_point(set_treasury_wallet());
+    entry_points.add_entry_point(set_fee());
     entry_points.add_entry_point(get_purse());
     entry_points.add_entry_point(create_order());
     entry_points.add_entry_point(cancel_order());

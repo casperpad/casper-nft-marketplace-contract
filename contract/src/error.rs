@@ -26,6 +26,8 @@ pub enum Error {
     BidExist = 46,
     OrderExist = 47,
     OrderNotExist = 48,
+    OfferExist = 49,
+    OfferNotExist = 50,
     // Contract Error
     InvalidContext = 90,
     KeyAlreadyExists = 91,
@@ -49,7 +51,9 @@ impl From<Error> for ApiError {
             | Error::KeyMismatch
             | Error::Overflow
             | Error::OrderExist
-            | Error::OrderNotExist => ApiError::User(error as u16),
+            | Error::OrderNotExist
+            | Error::OfferExist
+            | Error::OfferNotExist => ApiError::User(error as u16),
         }
     }
 }

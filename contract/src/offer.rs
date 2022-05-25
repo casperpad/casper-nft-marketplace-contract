@@ -111,14 +111,14 @@ impl PartialEq for Offer {
 }
 
 impl Offer {
-    pub fn is_exist_bid(&self, bid: &Bid) -> bool {
-        for b in &self.bids {
-            if b.eq(&bid) {
-                return true;
-            }
-        }
-        false
-    }
+    // pub fn is_exist_bid(&self, bid: &Bid) -> bool {
+    //     for b in &self.bids {
+    //         if b.eq(&bid) {
+    //             return true;
+    //         }
+    //     }
+    //     false
+    // }
     pub fn get_bid_index_by_account(&self, account: AccountHash) -> Option<usize> {
         let mut index: usize = 0;
         for bid in &self.bids {

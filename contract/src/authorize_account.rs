@@ -7,6 +7,7 @@ use casper_contract::contract_api::runtime;
 
 use casper_types::{runtime_args, ContractHash, Key, RuntimeArgs, URef};
 const MARKETPLACE_CONTRACT_HASH_ARG_NAME: &str = "marketplace_contract_hash";
+const ACCEESS_UREF_KEY_NAME: &str = "casper_nft_marketplace_access";
 #[no_mangle]
 pub extern "C" fn call() {
     let marketplace_contract_hash: ContractHash = {
@@ -22,5 +23,5 @@ pub extern "C" fn call() {
         runtime_args! {},
     );
 
-    runtime::put_key("access_uref", access_uref.into());
+    runtime::put_key(ACCEESS_UREF_KEY_NAME, access_uref.into());
 }

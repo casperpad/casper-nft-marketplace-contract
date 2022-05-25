@@ -32,8 +32,15 @@ pub(crate) fn write_offer(offer: Offer) {
 }
 
 /// Reads an allowance for a owner and spender
-pub(crate) fn read_offer(collection: ContractHash, token_id: U256) -> Option<Offer> {
+pub(crate) fn read_offer(collection: ContractHash, token_id: U256) -> Offer {
     let dictionary_item_key = make_dictionary_item_key(collection, token_id);
     let offers_uref = offers_uref();
-    storage::dictionary_get(offers_uref, &dictionary_item_key).unwrap_or_revert()
+    storage::dictionary_get(offers_uref, &dictionary_item_key)
+        .unwrap_or_revert()
+        .unwrap_or(Offer {
+            collection,
+            token_id,
+            bids: Vec::new(),
+            is_active: false,
+        })
 }
