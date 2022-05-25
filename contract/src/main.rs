@@ -23,7 +23,7 @@ use casper_types::{
 use constants::{
     ADMINS_GROUP_NAME, ADMINS_RUNTIME_ARG_NAME, AMOUNT_RUNTIME_ARG_NAME, BID_ID_RUNTIME_ARG_NAME,
     COLLECTION_RUNTIME_ARG_NAME, CONSTRUCTOR_ENTRY_NAME, CONTRACT_NAME_KEY_NAME, FEE_KEY_NAME,
-    FEE_RUNTIME_ARG_NAME, ORDERS_KEY_NAME, ORDER_ID_RUNTIME_ARG_NAME, OWNER_KEY_NAME,
+    FEE_RUNTIME_ARG_NAME, ON_ORDERS_KEY_NAME, ORDERS_KEY_NAME, OWNER_KEY_NAME,
     OWNER_RUNTIME_ARG_NAME, PRICE_RUNTIME_ARG_NAME, PURSE_BALANCE_KEY_NAME,
     TOKEN_ID_RUNTIME_ARG_NAME, TREASURY_WALLET_KEY_NAME,
 };
@@ -31,6 +31,7 @@ use detail::store_result;
 use error::Error;
 use icep47::ICEP47;
 use offer::{Bid, Offer};
+use on_orders::OnOrder;
 use order::Order;
 
 mod address;
@@ -42,6 +43,7 @@ mod fee;
 mod icep47;
 mod offer;
 mod offers;
+mod on_orders;
 mod order;
 mod orders;
 mod owner;
@@ -99,8 +101,17 @@ pub extern "C" fn create_order() {
     let token_id: U256 = runtime::get_named_arg(TOKEN_ID_RUNTIME_ARG_NAME);
     let price: U512 = runtime::get_named_arg(PRICE_RUNTIME_ARG_NAME);
 
+    let mut on_orders = on_orders::read_on_orders();
+
+    let find_result = on_orders::find(collection, token_id);
+
+    if find_result != None {
+        runtime::revert(Error::OrderExist);
+    }
+    on_orders.push((collection, token_id));
+    on_orders::write_on_orders(on_orders);
+
     let maker = runtime::get_caller();
-    let is_active = true;
 
     let me = detail::get_caller_address()
         .unwrap()
@@ -132,11 +143,8 @@ pub extern "C" fn create_order() {
         runtime::revert(Error::NotOwner);
     }
 
-    let orders_length = orders::read_orders_length();
-    let id = orders_length;
-
+    let is_active = true;
     let order = Order {
-        id,
         collection,
         token_id,
         maker,
@@ -144,10 +152,6 @@ pub extern "C" fn create_order() {
         is_active,
     };
     orders::write_order(order);
-
-    let new_orders_length = orders_length.checked_add(U256::one()).unwrap();
-    orders::write_orders_length(new_orders_length);
-    runtime::ret(CLValue::from_t(id).unwrap());
 }
 
 #[no_mangle]
@@ -155,8 +159,16 @@ pub extern "C" fn change_order_price() {}
 
 #[no_mangle]
 pub extern "C" fn cancel_order() {
-    let order_id: U256 = runtime::get_named_arg(ORDER_ID_RUNTIME_ARG_NAME);
-    let mut order = orders::read_order(order_id);
+    let collection: ContractHash = {
+        let collection_key: Key = runtime::get_named_arg(COLLECTION_RUNTIME_ARG_NAME);
+        ContractHash::new(collection_key.into_hash().unwrap())
+    };
+    let token_id: U256 = runtime::get_named_arg(TOKEN_ID_RUNTIME_ARG_NAME);
+    let find_result = on_orders::find(collection, token_id);
+    if find_result == None {
+        runtime::revert(Error::OrderNotExist);
+    }
+    let mut order = orders::read_order(collection, token_id);
     let caller = runtime::get_caller();
     if caller != order.maker {
         runtime::revert(Error::NotOrderMaker);
@@ -166,16 +178,30 @@ pub extern "C" fn cancel_order() {
     ICEP47::new(order.collection).transfer(Key::from(order.maker), vec![order.token_id]);
     order.is_active = false;
     orders::write_order(order);
+
+    let mut on_orders: Vec<OnOrder> = on_orders::read_on_orders();
+    on_orders.remove(find_result.unwrap());
+    on_orders::write_on_orders(on_orders);
+
     store_result(order);
 }
 
 #[no_mangle]
 pub extern "C" fn buy_order() {
     let amount: U512 = runtime::get_named_arg(AMOUNT_RUNTIME_ARG_NAME);
-    let order_id: U256 = runtime::get_named_arg(ORDER_ID_RUNTIME_ARG_NAME);
+    let collection: ContractHash = {
+        let collection_key: Key = runtime::get_named_arg(COLLECTION_RUNTIME_ARG_NAME);
+        ContractHash::new(collection_key.into_hash().unwrap())
+    };
+    let token_id: U256 = runtime::get_named_arg(TOKEN_ID_RUNTIME_ARG_NAME);
+
+    let find_result = on_orders::find(collection, token_id);
+    if find_result == None {
+        runtime::revert(Error::OrderNotExist);
+    }
 
     let _ = purse::checked_balance();
-    let mut order = orders::read_order(order_id);
+    let mut order = orders::read_order(collection, token_id);
     if !amount.eq(&order.price) {
         runtime::revert(Error::NotValidAmount);
     }
@@ -191,6 +217,10 @@ pub extern "C" fn buy_order() {
     purse::transfer_with_fee(order.maker, order.price);
 
     order.is_active = false;
+
+    let mut on_orders: Vec<OnOrder> = on_orders::read_on_orders();
+    on_orders.remove(find_result.unwrap());
+    on_orders::write_on_orders(on_orders);
     orders::write_order(order);
 }
 
@@ -348,6 +378,12 @@ pub extern "C" fn call() {
         Key::from(uref)
     };
 
+    let on_orders_key: Key = {
+        let init_value: Vec<OnOrder> = Vec::new();
+        let uref: URef = storage::new_uref(init_value).into_read_write();
+        Key::from(uref)
+    };
+
     let admins: Vec<AccountHash> = runtime::get_named_arg(ADMINS_RUNTIME_ARG_NAME);
 
     let mut named_keys = NamedKeys::new();
@@ -355,6 +391,7 @@ pub extern "C" fn call() {
     named_keys.insert(ORDERS_KEY_NAME.to_string(), orders_key);
     named_keys.insert(TREASURY_WALLET_KEY_NAME.to_string(), treasury_wallet_key);
     named_keys.insert(FEE_KEY_NAME.to_string(), fee_key);
+    named_keys.insert(ON_ORDERS_KEY_NAME.to_string(), on_orders_key);
 
     let mut admin_group = storage::create_contract_user_group(
         contract_package_hash,

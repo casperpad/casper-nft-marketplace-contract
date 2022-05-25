@@ -66,7 +66,6 @@ mod tests {
     const COLLECTION_RUNTIME_ARG_NAME: &str = "collection";
     const TOKEN_ID_RUNTIME_ARG_NAME: &str = "token_id";
     const PRICE_RUNTIME_ARG_NAME: &str = "price";
-    const ORDER_ID_RUNTIME_ARG_NAME: &str = "order_id";
     const OWNER_ARG_NAME: &str = "owner";
     const AMOUNT_RUNTIME_ARG_NAME: &str = "amount";
     const MARKETPLACE_CONTRACT_HASH_ARG_NAME: &str = "marketplace_contract_hash";
@@ -268,7 +267,12 @@ mod tests {
         );
     }
 
-    fn create_order(builder: &mut InMemoryWasmTestBuilder, context: TestContext) {
+    fn create_order(
+        builder: &mut InMemoryWasmTestBuilder,
+        context: TestContext,
+        token_id: U256,
+        price: U512,
+    ) {
         call_contract(
             builder,
             context.marketplace_contract,
@@ -276,30 +280,32 @@ mod tests {
             CREATE_ORDER_ENTRY_NAME,
             runtime_args! {
                 COLLECTION_RUNTIME_ARG_NAME => Key::from(context.nft_contract_hash),
-                TOKEN_ID_RUNTIME_ARG_NAME => U256::from(0),
+                TOKEN_ID_RUNTIME_ARG_NAME => token_id,
                 PRICE_RUNTIME_ARG_NAME => U512::from(1000).checked_mul(U512::exp10(9)).unwrap(),
             },
         );
     }
 
-    fn cancel_order(builder: &mut InMemoryWasmTestBuilder, context: TestContext) {
+    fn cancel_order(builder: &mut InMemoryWasmTestBuilder, context: TestContext, token_id: U256) {
         call_contract(
             builder,
             context.marketplace_contract,
             *DEFAULT_ACCOUNT_ADDR,
             CANCEL_ORDER_ENTRY_NAME,
             runtime_args! {
-                ORDER_ID_RUNTIME_ARG_NAME => U256::from(0)
+                COLLECTION_RUNTIME_ARG_NAME => Key::from(context.nft_contract_hash),
+                TOKEN_ID_RUNTIME_ARG_NAME => token_id,
             },
         );
     }
 
-    fn pre_buy_order(builder: &mut InMemoryWasmTestBuilder, context: TestContext) {
+    fn pre_buy_order(builder: &mut InMemoryWasmTestBuilder, context: TestContext, token_id: U256) {
         let install_pre_buy_order_contract = ExecuteRequestBuilder::standard(
             *DEFAULT_ACCOUNT_ADDR,
             PRE_BUY_ORDER_CONTRACT_WASM,
             runtime_args! {
-                ORDER_ID_RUNTIME_ARG_NAME => U256::from(0),
+                COLLECTION_RUNTIME_ARG_NAME => Key::from(context.nft_contract_hash),
+                TOKEN_ID_RUNTIME_ARG_NAME => token_id,
                 AMOUNT_RUNTIME_ARG_NAME => U512::from(1000).checked_mul(U512::exp10(9)).unwrap(),
                 MARKETPLACE_CONTRACT_HASH_ARG_NAME => Key::from(context.marketplace_contract)
             },
@@ -312,14 +318,15 @@ mod tests {
             .commit();
     }
 
-    fn _buy_order(builder: &mut InMemoryWasmTestBuilder, context: TestContext) {
+    fn _buy_order(builder: &mut InMemoryWasmTestBuilder, context: TestContext, token_id: U256) {
         call_contract(
             builder,
             context.marketplace_contract,
             *DEFAULT_ACCOUNT_ADDR,
             BUY_ORDER_ENTRY_NAME,
             runtime_args! {
-                ORDER_ID_RUNTIME_ARG_NAME => U256::from(0),
+                COLLECTION_RUNTIME_ARG_NAME => Key::from(context.nft_contract_hash),
+                TOKEN_ID_RUNTIME_ARG_NAME => token_id,
                 AMOUNT_RUNTIME_ARG_NAME => U512::from(1000)
             },
         );
@@ -572,7 +579,12 @@ mod tests {
 
         approve_nft(&mut builder, context);
 
-        create_order(&mut builder, context);
+        create_order(
+            &mut builder,
+            context,
+            U256::zero(),
+            U512::from(1000).checked_mul(U512::exp10(9)).unwrap(),
+        );
     }
 
     #[test]
@@ -583,8 +595,13 @@ mod tests {
 
         approve_nft(&mut builder, context);
 
-        create_order(&mut builder, context);
-        pre_buy_order(&mut builder, context);
+        create_order(
+            &mut builder,
+            context,
+            U256::zero(),
+            U512::from(1000).checked_mul(U512::exp10(9)).unwrap(),
+        );
+        pre_buy_order(&mut builder, context, U256::zero());
     }
 
     #[test]
@@ -595,9 +612,14 @@ mod tests {
 
         approve_nft(&mut builder, context);
 
-        create_order(&mut builder, context);
+        create_order(
+            &mut builder,
+            context,
+            U256::zero(),
+            U512::from(1000).checked_mul(U512::exp10(9)).unwrap(),
+        );
 
-        cancel_order(&mut builder, context);
+        cancel_order(&mut builder, context, U256::zero());
 
         let order: Order = get_test_result(&mut builder, context.marketplace_contract);
         println!("{:?}", order);

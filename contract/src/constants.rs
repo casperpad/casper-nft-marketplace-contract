@@ -7,13 +7,13 @@ pub const RESULT_KEY_NAME: &str = "result";
 pub const PURSE_KEY_NAME: &str = "purse";
 pub const PURSE_BALANCE_KEY_NAME: &str = "purse_balance";
 pub const FEE_KEY_NAME: &str = "fee";
+pub const ON_ORDERS_KEY_NAME: &str = "on_orders";
 
 // RUNTIME ARG NAMES
 pub const OWNER_RUNTIME_ARG_NAME: &str = "owner";
 pub const COLLECTION_RUNTIME_ARG_NAME: &str = "collection";
 pub const TOKEN_ID_RUNTIME_ARG_NAME: &str = "token_id";
 pub const PRICE_RUNTIME_ARG_NAME: &str = "price";
-pub const ORDER_ID_RUNTIME_ARG_NAME: &str = "order_id";
 pub const BID_ID_RUNTIME_ARG_NAME: &str = "bid_id";
 pub const FEE_RUNTIME_ARG_NAME: &str = "fee";
 pub const AMOUNT_RUNTIME_ARG_NAME: &str = "amount";

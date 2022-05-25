@@ -8,9 +8,8 @@ use crate::constants::{
     BUY_ORDER_ENTRY_NAME, CANCEL_OFFER_ENTRY_NAME, CANCEL_ORDER_ENTRY_NAME,
     COLLECTION_RUNTIME_ARG_NAME, CONSTRUCTOR_ENTRY_NAME, CREATE_OFFER_ENTRY_NAME,
     CREATE_ORDER_ENTRY_NAME, GET_ACCESS_UREF_ENTRY_NAME, GET_PURSE_ENTRY_NAME,
-    ORDER_ID_RUNTIME_ARG_NAME, OWNER_RUNTIME_ARG_NAME, PRICE_RUNTIME_ARG_NAME,
-    SET_TREASURY_WALLET_ENTRY_NAME, TOKEN_ID_RUNTIME_ARG_NAME, TRANSFER_OWNERSHIP_ENTRY_NAME,
-    TREASURY_WALLET_RUNTIME_ARG_NAME,
+    OWNER_RUNTIME_ARG_NAME, PRICE_RUNTIME_ARG_NAME, SET_TREASURY_WALLET_ENTRY_NAME,
+    TOKEN_ID_RUNTIME_ARG_NAME, TRANSFER_OWNERSHIP_ENTRY_NAME, TREASURY_WALLET_RUNTIME_ARG_NAME,
 };
 
 /// Returns the `constructor` entry point.
@@ -67,7 +66,10 @@ pub fn create_order() -> EntryPoint {
 pub fn cancel_order() -> EntryPoint {
     EntryPoint::new(
         String::from(CANCEL_ORDER_ENTRY_NAME),
-        vec![Parameter::new(ORDER_ID_RUNTIME_ARG_NAME, CLType::U256)],
+        vec![
+            Parameter::new(COLLECTION_RUNTIME_ARG_NAME, CLType::Key),
+            Parameter::new(TOKEN_ID_RUNTIME_ARG_NAME, CLType::U256),
+        ],
         CLType::Unit,
         EntryPointAccess::Public,
         EntryPointType::Contract,
@@ -78,7 +80,10 @@ pub fn cancel_order() -> EntryPoint {
 pub fn buy_order() -> EntryPoint {
     EntryPoint::new(
         String::from(BUY_ORDER_ENTRY_NAME),
-        vec![Parameter::new(ORDER_ID_RUNTIME_ARG_NAME, CLType::U256)],
+        vec![
+            Parameter::new(COLLECTION_RUNTIME_ARG_NAME, CLType::Key),
+            Parameter::new(TOKEN_ID_RUNTIME_ARG_NAME, CLType::U256),
+        ],
         CLType::Unit,
         EntryPointAccess::Public,
         EntryPointType::Contract,
