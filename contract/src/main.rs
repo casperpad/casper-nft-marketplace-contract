@@ -301,6 +301,7 @@ pub extern "C" fn cancel_offer() {
             offer.bids.remove(index);
             store_result(offer.clone());
             offers::write_offer(offer);
+
             let mut on_offers = on_offers::read_on_offers();
             on_offers.remove(find_result.unwrap());
             on_offers::write_on_offers(on_offers);
