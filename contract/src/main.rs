@@ -12,6 +12,7 @@ use alloc::{
     vec,
     vec::Vec,
 };
+use bid::Bid;
 use casper_contract::{
     contract_api::{runtime, storage, system},
     unwrap_or_revert::UnwrapOrRevert,
@@ -31,12 +32,14 @@ use detail::store_result;
 use error::Error;
 use event::Event;
 use icep47::ICEP47;
-use offer::{Bid, Offer};
+use offer::Offer;
 use on_offers::OnOffer;
 use on_orders::OnOrder;
 use order::Order;
 
 mod address;
+mod auction;
+mod bid;
 mod constants;
 mod detail;
 mod entry_points;
