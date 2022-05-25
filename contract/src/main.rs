@@ -29,6 +29,7 @@ use constants::{
 };
 use detail::store_result;
 use error::Error;
+use event::Event;
 use icep47::ICEP47;
 use offer::{Bid, Offer};
 use on_offers::OnOffer;
@@ -40,6 +41,7 @@ mod constants;
 mod detail;
 mod entry_points;
 mod error;
+mod event;
 mod fee;
 mod icep47;
 mod offer;
@@ -50,13 +52,6 @@ mod order;
 mod orders;
 mod purse;
 mod treasury_wallet;
-
-/// Transfer ownership to `owner` parameter should be `account-hash-000...000`
-#[no_mangle]
-pub extern "C" fn add_admins() {}
-
-#[no_mangle]
-pub extern "C" fn remove_admins() {}
 
 #[no_mangle]
 pub extern "C" fn get_access_uref() {
@@ -78,12 +73,16 @@ pub extern "C" fn set_treasury_wallet() {
         AccountHash::from_formatted_str(new_owner_string.as_str()).unwrap()
     };
     treasury_wallet::write_treasury_wallet(new_treasury_wallet);
+    event::emit(&Event::TreasuryWalletChanged {
+        treasury_wallet: new_treasury_wallet,
+    });
 }
 
 #[no_mangle]
 pub extern "C" fn set_fee() {
     let fee: U512 = runtime::get_named_arg(FEE_RUNTIME_ARG_NAME);
     fee::write_fee(fee);
+    event::emit(&Event::FeeChanged { fee });
 }
 
 #[no_mangle]
@@ -146,6 +145,12 @@ pub extern "C" fn create_order() {
         is_active,
     };
     orders::write_order(order);
+    event::emit(&Event::OrderCreated {
+        maker,
+        collection: collection.into(),
+        token_id,
+        price,
+    });
 }
 
 #[no_mangle]
@@ -178,6 +183,11 @@ pub extern "C" fn cancel_order() {
     on_orders::write_on_orders(on_orders);
 
     store_result(order);
+    event::emit(&Event::OrderCanceled {
+        maker: caller,
+        collection: collection.into(),
+        token_id,
+    });
 }
 
 #[no_mangle]
@@ -216,6 +226,12 @@ pub extern "C" fn buy_order() {
     on_orders.remove(find_result.unwrap());
     on_orders::write_on_orders(on_orders);
     orders::write_order(order);
+    event::emit(&Event::OrderBought {
+        maker: caller,
+        collection: collection.into(),
+        token_id,
+        price: order.price,
+    });
 }
 
 #[no_mangle]
@@ -253,6 +269,12 @@ pub extern "C" fn create_offer() {
 
     offers::write_offer(offer);
     on_offers::write_on_offers(on_offers);
+    event::emit(&Event::OfferCreated {
+        maker,
+        collection: collection.into(),
+        token_id,
+        price,
+    });
 }
 
 #[no_mangle]
@@ -281,7 +303,12 @@ pub extern "C" fn cancel_offer() {
             offers::write_offer(offer);
         }
         None => runtime::revert(Error::PermissionDenied),
-    }
+    };
+    event::emit(&Event::OfferCanceled {
+        maker,
+        collection: collection.into(),
+        token_id,
+    });
 }
 
 #[no_mangle]
@@ -319,6 +346,12 @@ pub extern "C" fn accept_offer() {
 
     store_result(ICEP47::new(collection).owner_of(token_id));
     offers::write_offer(offer);
+    event::emit(&Event::OfferAccepted {
+        maker: caller,
+        collection: collection.into(),
+        token_id,
+        price: accepted_bid.price,
+    });
 }
 
 #[no_mangle]

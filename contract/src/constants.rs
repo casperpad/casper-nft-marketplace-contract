@@ -19,7 +19,7 @@ pub const FEE_RUNTIME_ARG_NAME: &str = "fee";
 pub const AMOUNT_RUNTIME_ARG_NAME: &str = "amount";
 pub const ADMINS_RUNTIME_ARG_NAME: &str = "admins";
 pub const TREASURY_WALLET_RUNTIME_ARG_NAME: &str = "treasury_wallet";
-
+pub const MAKER_RUNTIME_ARG_NAME: &str = "maker";
 // ENTRY POINT NAMES
 pub const SET_TREASURY_WALLET_ENTRY_NAME: &str = "set_treasury_wallet";
 pub const SET_FEE_ENTRY_NAME: &str = "set_fee";
