@@ -12,6 +12,7 @@ use alloc::{
     vec,
     vec::Vec,
 };
+use auction::{Auction, AuctionType};
 use bid::Bid;
 use casper_contract::{
     contract_api::{runtime, storage, system},
@@ -23,9 +24,10 @@ use casper_types::{
 };
 use constants::{
     ACCEESS_UREF_KEY_NAME, ADMINS_GROUP_NAME, ADMINS_RUNTIME_ARG_NAME, AMOUNT_RUNTIME_ARG_NAME,
-    BID_ID_RUNTIME_ARG_NAME, COLLECTION_RUNTIME_ARG_NAME, CONSTRUCTOR_ENTRY_NAME,
-    CONTRACT_NAME_KEY_NAME, FEE_KEY_NAME, FEE_RUNTIME_ARG_NAME, ON_OFFERS_KEY_NAME,
-    ON_ORDERS_KEY_NAME, ORDERS_KEY_NAME, PRICE_RUNTIME_ARG_NAME, PURSE_BALANCE_KEY_NAME,
+    AUCTION_TYPE_RUNTIME_ARG_NAME, BID_ID_RUNTIME_ARG_NAME, COLLECTION_RUNTIME_ARG_NAME,
+    CONSTRUCTOR_ENTRY_NAME, CONTRACT_NAME_KEY_NAME, END_TIME_RUNTIME_ARG_NAME, FEE_KEY_NAME,
+    FEE_RUNTIME_ARG_NAME, ON_OFFERS_KEY_NAME, ON_ORDERS_KEY_NAME, ORDERS_KEY_NAME,
+    PRICE_RUNTIME_ARG_NAME, PURSE_BALANCE_KEY_NAME, START_TIME_RUNTIME_ARG_NAME,
     TOKEN_ID_RUNTIME_ARG_NAME, TREASURY_WALLET_KEY_NAME, TREASURY_WALLET_RUNTIME_ARG_NAME,
 };
 use detail::store_result;
@@ -247,12 +249,12 @@ pub extern "C" fn create_offer() {
     let token_id: U256 = runtime::get_named_arg(TOKEN_ID_RUNTIME_ARG_NAME);
     let maker = runtime::get_caller();
     let price: U512 = runtime::get_named_arg(AMOUNT_RUNTIME_ARG_NAME);
-    let offer_time = u64::from(runtime::get_blocktime());
+    let bid_time = u64::from(runtime::get_blocktime());
 
     let bid = Bid {
         maker,
         price,
-        offer_time,
+        bid_time,
     };
 
     let mut offer = offers::read_offer(collection, token_id);
@@ -335,7 +337,8 @@ pub extern "C" fn accept_offer() {
         runtime::revert(Error::PermissionDenied);
     }
     let mut offer = offers::read_offer(collection, token_id);
-    let accepted_bid = &offer.bids.get(bid_id).unwrap().clone();
+    let accepted_bid = offer.bids.get(bid_id).unwrap().clone();
+
     // Send cspr to token owner and transfer nft to bidder
     purse::transfer_with_fee(caller, accepted_bid.price);
     ICEP47::new(collection).transfer_from(
@@ -344,19 +347,7 @@ pub extern "C" fn accept_offer() {
         vec![token_id],
     );
 
-    for bid in &offer.bids {
-        // for other bidders, refund
-        if !bid.eq(accepted_bid) {
-            purse::transfer(bid.maker, bid.price);
-        }
-        let find_result = on_offers::find(collection, token_id, bid.maker);
-        let mut on_offers = on_offers::read_on_offers();
-        on_offers.remove(find_result.unwrap());
-        on_offers::write_on_offers(on_offers);
-    }
-    offer.is_active = false;
-
-    store_result(ICEP47::new(collection).owner_of(token_id));
+    offer.bids.remove(bid_id);
     offers::write_offer(offer);
     event::emit(&Event::OfferAccepted {
         maker: caller,
@@ -379,6 +370,35 @@ pub extern "C" fn constructor() {
 pub extern "C" fn get_purse() {
     let purse: URef = purse::get_main_purse();
     runtime::ret(CLValue::from_t(purse).unwrap_or_revert());
+}
+
+#[no_mangle]
+pub extern "C" fn create_auction() {
+    let maker = runtime::get_caller();
+    let collection: ContractHash = {
+        let collection_key: Key = runtime::get_named_arg(COLLECTION_RUNTIME_ARG_NAME);
+        ContractHash::new(collection_key.into_hash().unwrap())
+    };
+    let token_id: U256 = runtime::get_named_arg(TOKEN_ID_RUNTIME_ARG_NAME);
+    let auction_type: AuctionType = {
+        let auction_u8: u8 = runtime::get_named_arg(AUCTION_TYPE_RUNTIME_ARG_NAME);
+        AuctionType::from(auction_u8)
+    };
+    let price: Option<U512> = runtime::get_named_arg(PRICE_RUNTIME_ARG_NAME);
+    let start_time: u64 = runtime::get_named_arg(START_TIME_RUNTIME_ARG_NAME);
+    let end_time: Option<u64> = runtime::get_named_arg(END_TIME_RUNTIME_ARG_NAME);
+    let bids: Vec<Bid> = Vec::new();
+    let auction = Auction {
+        maker,
+        collection,
+        token_id,
+        auction_type,
+        price,
+        start_time,
+        end_time,
+        bids,
+    };
+    store_result(auction);
 }
 
 #[no_mangle]

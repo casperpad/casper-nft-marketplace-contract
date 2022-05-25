@@ -1,15 +1,17 @@
-use alloc::{string::String, vec};
+use alloc::{boxed::Box, string::String, vec};
 use casper_types::{
     CLType, CLTyped, EntryPoint, EntryPointAccess, EntryPointType, EntryPoints, Group, Parameter,
 };
 
 use crate::constants::{
-    ACCEPT_OFFER_ENTRY_NAME, ADMINS_GROUP_NAME, AMOUNT_RUNTIME_ARG_NAME, BID_ID_RUNTIME_ARG_NAME,
-    BUY_ORDER_ENTRY_NAME, CANCEL_OFFER_ENTRY_NAME, CANCEL_ORDER_ENTRY_NAME,
-    COLLECTION_RUNTIME_ARG_NAME, CONSTRUCTOR_ENTRY_NAME, CREATE_OFFER_ENTRY_NAME,
-    CREATE_ORDER_ENTRY_NAME, FEE_RUNTIME_ARG_NAME, GET_ACCESS_UREF_ENTRY_NAME,
-    GET_PURSE_ENTRY_NAME, PRICE_RUNTIME_ARG_NAME, SET_FEE_ENTRY_NAME,
-    SET_TREASURY_WALLET_ENTRY_NAME, TOKEN_ID_RUNTIME_ARG_NAME, TREASURY_WALLET_RUNTIME_ARG_NAME,
+    ACCEPT_OFFER_ENTRY_NAME, ADMINS_GROUP_NAME, AMOUNT_RUNTIME_ARG_NAME,
+    AUCTION_TYPE_RUNTIME_ARG_NAME, BID_ID_RUNTIME_ARG_NAME, BUY_ORDER_ENTRY_NAME,
+    CANCEL_OFFER_ENTRY_NAME, CANCEL_ORDER_ENTRY_NAME, COLLECTION_RUNTIME_ARG_NAME,
+    CONSTRUCTOR_ENTRY_NAME, CREATE_AUCTION_ENTRY_NAME, CREATE_OFFER_ENTRY_NAME,
+    CREATE_ORDER_ENTRY_NAME, END_TIME_RUNTIME_ARG_NAME, FEE_RUNTIME_ARG_NAME,
+    GET_ACCESS_UREF_ENTRY_NAME, GET_PURSE_ENTRY_NAME, PRICE_RUNTIME_ARG_NAME, SET_FEE_ENTRY_NAME,
+    SET_TREASURY_WALLET_ENTRY_NAME, START_TIME_RUNTIME_ARG_NAME, TOKEN_ID_RUNTIME_ARG_NAME,
+    TREASURY_WALLET_RUNTIME_ARG_NAME,
 };
 
 /// Returns the `constructor` entry point.
@@ -145,6 +147,26 @@ pub fn accept_offer() -> EntryPoint {
     )
 }
 
+pub fn create_auction() -> EntryPoint {
+    EntryPoint::new(
+        String::from(CREATE_AUCTION_ENTRY_NAME),
+        vec![
+            Parameter::new(COLLECTION_RUNTIME_ARG_NAME, CLType::Key),
+            Parameter::new(TOKEN_ID_RUNTIME_ARG_NAME, CLType::U256),
+            Parameter::new(AUCTION_TYPE_RUNTIME_ARG_NAME, CLType::U8),
+            Parameter::new(
+                PRICE_RUNTIME_ARG_NAME,
+                CLType::Option(Box::new(CLType::U512)),
+            ),
+            Parameter::new(START_TIME_RUNTIME_ARG_NAME, CLType::U256),
+            Parameter::new(END_TIME_RUNTIME_ARG_NAME, CLType::U256),
+        ],
+        CLType::U256,
+        EntryPointAccess::Public,
+        EntryPointType::Contract,
+    )
+}
+
 /// Returns the `get_purse` entry point.
 pub fn get_purse() -> EntryPoint {
     EntryPoint::new(
@@ -167,6 +189,7 @@ pub fn default() -> EntryPoints {
     entry_points.add_entry_point(create_offer());
     entry_points.add_entry_point(cancel_offer());
     entry_points.add_entry_point(accept_offer());
+    entry_points.add_entry_point(create_auction());
     entry_points.add_entry_point(buy_order());
     entry_points.add_entry_point(get_access_uref());
     entry_points

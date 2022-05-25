@@ -20,6 +20,10 @@ pub const AMOUNT_RUNTIME_ARG_NAME: &str = "amount";
 pub const ADMINS_RUNTIME_ARG_NAME: &str = "admins";
 pub const TREASURY_WALLET_RUNTIME_ARG_NAME: &str = "treasury_wallet";
 pub const MAKER_RUNTIME_ARG_NAME: &str = "maker";
+pub const AUCTION_TYPE_RUNTIME_ARG_NAME: &str = "auction_type";
+pub const START_TIME_RUNTIME_ARG_NAME: &str = "start_time";
+pub const END_TIME_RUNTIME_ARG_NAME: &str = "end_time";
+
 // ENTRY POINT NAMES
 pub const SET_TREASURY_WALLET_ENTRY_NAME: &str = "set_treasury_wallet";
 pub const SET_FEE_ENTRY_NAME: &str = "set_fee";
@@ -32,6 +36,7 @@ pub const ACCEPT_OFFER_ENTRY_NAME: &str = "accept_offer";
 pub const CONSTRUCTOR_ENTRY_NAME: &str = "constructor";
 pub const GET_PURSE_ENTRY_NAME: &str = "get_purse";
 pub const GET_ACCESS_UREF_ENTRY_NAME: &str = "get_access_uref";
+pub const CREATE_AUCTION_ENTRY_NAME: &str = "create_auction";
 
 // GROUP NAMES
 pub const ADMINS_GROUP_NAME: &str = "admins";
