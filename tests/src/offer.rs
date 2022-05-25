@@ -109,14 +109,3 @@ impl PartialEq for Offer {
         eq_collection && eq_token_id && eq_is_active && eq_bids
     }
 }
-
-impl Offer {
-    pub fn is_exist_bid(&self, bid: &Bid) -> bool {
-        for b in &self.bids {
-            if b.eq(&bid) {
-                return true;
-            }
-        }
-        false
-    }
-}

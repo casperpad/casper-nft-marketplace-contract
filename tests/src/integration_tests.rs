@@ -329,8 +329,8 @@ mod tests {
             "mint",
             runtime_args! {
                 "recipient" => Key::from(*DEFAULT_ACCOUNT_ADDR),
-                "token_ids" => vec![U256::from(0),U256::from(1)],
-                "token_metas" => vec![meta::red_dragon(),meta::black_dragon()]
+                "token_ids" => vec![U256::from(0),U256::from(1),U256::from(2),U256::from(3)],
+                "token_metas" => vec![meta::red_dragon(),meta::black_dragon(),meta::blue_dragon(),meta::gold_dragon()]
             },
         );
     }

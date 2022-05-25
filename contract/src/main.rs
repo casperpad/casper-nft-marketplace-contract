@@ -301,6 +301,9 @@ pub extern "C" fn cancel_offer() {
             offer.bids.remove(index);
             store_result(offer.clone());
             offers::write_offer(offer);
+            let mut on_offers = on_offers::read_on_offers();
+            on_offers.remove(find_result.unwrap());
+            on_offers::write_on_offers(on_offers);
         }
         None => runtime::revert(Error::PermissionDenied),
     };
@@ -336,11 +339,16 @@ pub extern "C" fn accept_offer() {
         Key::from(accepted_bid.maker),
         vec![token_id],
     );
-    // for other bidders, refund
+
     for bid in &offer.bids {
+        // for other bidders, refund
         if !bid.eq(accepted_bid) {
             purse::transfer(bid.maker, bid.price);
         }
+        let find_result = on_offers::find(collection, token_id, bid.maker);
+        let mut on_offers = on_offers::read_on_offers();
+        on_offers.remove(find_result.unwrap());
+        on_offers::write_on_offers(on_offers);
     }
     offer.is_active = false;
 
