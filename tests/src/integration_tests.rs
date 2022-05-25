@@ -1,5 +1,7 @@
 extern crate alloc;
 
+mod auction;
+mod bid;
 mod offer;
 mod order;
 
@@ -51,7 +53,7 @@ mod tests {
         ContractPackageHash, Key, PublicKey, RuntimeArgs, SecretKey, U256, U512,
     };
 
-    use crate::{meta, offer::Offer, order::Order};
+    use crate::{auction::Auction, meta, offer::Offer, order::Order};
 
     // KEY NAMES
     const CONTRACT_NAME_KEY_NAME: &str = "casper_nft_marketplace";
@@ -445,6 +447,58 @@ mod tests {
         );
     }
 
+    fn create_auction(
+        builder: &mut InMemoryWasmTestBuilder,
+        context: TestContext,
+        maker: AccountHash,
+        token_id: U256,
+        auction_type: u8,
+        price: Option<U512>,
+        start_time: u64,
+        end_time: Option<u64>,
+    ) {
+        call_contract(
+            builder,
+            context.marketplace_contract,
+            maker,
+            "create_auction",
+            runtime_args! {
+                COLLECTION_RUNTIME_ARG_NAME => Key::from(context.nft_contract_hash),
+                TOKEN_ID_RUNTIME_ARG_NAME => token_id,
+                "auction_type" => auction_type,
+                "price" => price,
+                "start_time" => start_time,
+                "end_time" => end_time
+            },
+        );
+    }
+
+    #[test]
+    fn should_create_auction() {
+        let (mut builder, context) = setup();
+        let maker = account(1);
+
+        let token_id = U256::zero();
+        let auction_type = 1u8;
+        let price = Some(U512::from(3u8).checked_mul(U512::exp10(9)).unwrap());
+        let start_time = 1653506150007u64;
+        let end_time: Option<u64> = None;
+
+        create_auction(
+            &mut builder,
+            context,
+            maker,
+            token_id,
+            auction_type,
+            price,
+            start_time,
+            end_time,
+        );
+        let auction: Auction = get_test_result(&mut builder, context.marketplace_contract);
+        println!("{:?}", auction);
+        assert!(auction.bids.len() == 0);
+    }
+
     #[test]
     fn should_set_treasury_wallet() {
         let (mut builder, context) = setup();
@@ -537,8 +591,6 @@ mod tests {
         mint_nft(&mut builder, context);
         approve_nft(&mut builder, context);
         accept_offer(&mut builder, context, U256::zero(), 1u8);
-        let owner: Option<Key> = get_test_result(&mut builder, context.marketplace_contract);
-        assert!(owner == Some(Key::from(account(2))));
     }
 
     #[test]

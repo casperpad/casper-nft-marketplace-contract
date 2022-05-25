@@ -41,6 +41,5 @@ pub(crate) fn read_offer(collection: ContractHash, token_id: U256) -> Offer {
             collection,
             token_id,
             bids: Vec::new(),
-            is_active: false,
         })
 }
