@@ -23,10 +23,14 @@ pub(crate) fn write_on_offers(value: Vec<OnOffer>) {
     storage::write(uref, value);
 }
 
-pub(crate) fn find(collection: ContractHash, token_id: U256, maker: AccountHash) -> Option<usize> {
+pub(crate) fn find(
+    collection: ContractHash,
+    token_id: U256,
+    offerer: AccountHash,
+) -> Option<usize> {
     let on_offers = read_on_offers();
     let result = on_offers.iter().position(|on_offer| {
-        on_offer.0.eq(&collection) && on_offer.1.eq(&token_id) && on_offer.2.eq(&maker)
+        on_offer.0.eq(&collection) && on_offer.1.eq(&token_id) && on_offer.2.eq(&offerer)
     });
     result
 }

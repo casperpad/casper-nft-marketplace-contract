@@ -9,7 +9,7 @@ use casper_types::{
 pub struct Order {
     pub collection: ContractHash,
     pub token_id: U256,
-    pub maker: AccountHash,
+    pub offerer: AccountHash,
     pub price: U512,
     pub is_active: bool,
 }
@@ -27,7 +27,7 @@ impl ToBytes for Order {
 
         result.append(&mut self.collection.into_bytes().unwrap());
         result.append(&mut self.token_id.into_bytes().unwrap());
-        result.append(&mut self.maker.into_bytes().unwrap());
+        result.append(&mut self.offerer.into_bytes().unwrap());
         result.append(&mut self.price.into_bytes().unwrap());
         result.append(&mut self.is_active.into_bytes().unwrap());
         Ok(result)
@@ -37,7 +37,7 @@ impl ToBytes for Order {
     fn serialized_length(&self) -> usize {
         self.collection.serialized_length()
             + self.token_id.serialized_length()
-            + self.maker.serialized_length()
+            + self.offerer.serialized_length()
             + self.price.serialized_length()
             + self.price.serialized_length()
     }
@@ -54,7 +54,7 @@ impl FromBytes for Order {
     fn from_bytes(bytes: &[u8]) -> Result<(Self, &[u8]), bytesrepr::Error> {
         let (collection, bytes) = ContractHash::from_bytes(bytes).unwrap();
         let (token_id, bytes) = U256::from_bytes(bytes).unwrap();
-        let (maker, bytes) = AccountHash::from_bytes(bytes).unwrap();
+        let (offerer, bytes) = AccountHash::from_bytes(bytes).unwrap();
         let (price, bytes) = U512::from_bytes(bytes).unwrap();
         let (is_active, bytes) = bool::from_bytes(bytes).unwrap();
 
@@ -62,7 +62,7 @@ impl FromBytes for Order {
             Order {
                 collection,
                 token_id,
-                maker,
+                offerer,
                 price,
                 is_active,
             },

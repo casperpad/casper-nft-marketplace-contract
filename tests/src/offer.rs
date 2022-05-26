@@ -6,7 +6,7 @@ use casper_types::{
     CLType, CLTyped, ContractHash, U256,
 };
 
-use crate::bid::Bid;
+use super::bid::Bid;
 
 #[derive(Clone, Debug)]
 pub struct Offer {
@@ -74,7 +74,7 @@ impl Offer {
     pub fn get_bid_index_by_account(&self, account: AccountHash) -> Option<usize> {
         let mut index: usize = 0;
         for bid in &self.bids {
-            if bid.maker == account {
+            if bid.offerer == account {
                 return Some(index);
             }
             index += 1;
