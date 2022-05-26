@@ -366,12 +366,12 @@ mod tests {
     fn pre_create_offer(
         builder: &mut InMemoryWasmTestBuilder,
         context: TestContext,
-        maker: AccountHash,
+        offerer: AccountHash,
         token_id: U256,
         price: U512,
     ) {
         let install_pre_create_offer_contract = ExecuteRequestBuilder::standard(
-            maker,
+            offerer,
             PER_CREATE_OFFER_CONTRACT_WASM,
             runtime_args! {
                 COLLECTION_RUNTIME_ARG_NAME => Key::from(context.nft_contract_hash),
@@ -391,14 +391,14 @@ mod tests {
     fn _create_offer(
         builder: &mut InMemoryWasmTestBuilder,
         context: TestContext,
-        maker: AccountHash,
+        offerer: AccountHash,
         token_id: U256,
         price: U512,
     ) {
         call_contract(
             builder,
             context.marketplace_contract,
-            maker,
+            offerer,
             "create_offer",
             runtime_args! {
                 COLLECTION_RUNTIME_ARG_NAME => Key::from(context.nft_contract_hash),
@@ -411,13 +411,13 @@ mod tests {
     fn cancel_offer(
         builder: &mut InMemoryWasmTestBuilder,
         context: TestContext,
-        maker: AccountHash,
+        offerer: AccountHash,
         token_id: U256,
     ) {
         call_contract(
             builder,
             context.marketplace_contract,
-            maker,
+            offerer,
             "cancel_offer",
             runtime_args! {
                 COLLECTION_RUNTIME_ARG_NAME => Key::from(context.nft_contract_hash),
@@ -450,7 +450,7 @@ mod tests {
     fn create_auction(
         builder: &mut InMemoryWasmTestBuilder,
         context: TestContext,
-        maker: AccountHash,
+        offerer: AccountHash,
         token_id: U256,
         auction_type: u8,
         price: Option<U512>,
@@ -460,7 +460,7 @@ mod tests {
         call_contract(
             builder,
             context.marketplace_contract,
-            maker,
+            offerer,
             "create_auction",
             runtime_args! {
                 COLLECTION_RUNTIME_ARG_NAME => Key::from(context.nft_contract_hash),
@@ -476,7 +476,7 @@ mod tests {
     #[test]
     fn should_create_auction() {
         let (mut builder, context) = setup();
-        let maker = account(1);
+        let offerer = account(1);
 
         let token_id = U256::zero();
         let auction_type = 1u8;
@@ -487,7 +487,7 @@ mod tests {
         create_auction(
             &mut builder,
             context,
-            maker,
+            offerer,
             token_id,
             auction_type,
             price,

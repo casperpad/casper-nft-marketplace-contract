@@ -5,7 +5,7 @@ use casper_types::{
     CLType, CLTyped, ContractHash, U256, U512,
 };
 
-use crate::bid::Bid;
+use super::bid::Bid;
 
 #[repr(u8)]
 #[derive(Copy, Clone, Debug)]
@@ -62,7 +62,7 @@ impl AuctionType {
 
 #[derive(Clone, Debug)]
 pub struct Auction {
-    pub maker: AccountHash,
+    pub offerer: AccountHash,
     pub collection: ContractHash,
     pub token_id: U256,
     pub auction_type: AuctionType,
@@ -81,7 +81,7 @@ impl CLTyped for Auction {
 impl ToBytes for Auction {
     fn to_bytes(&self) -> Result<alloc::vec::Vec<u8>, casper_types::bytesrepr::Error> {
         let mut buffer = bytesrepr::allocate_buffer(self)?;
-        buffer.extend(self.maker.to_bytes()?);
+        buffer.extend(self.offerer.to_bytes()?);
         buffer.extend(self.collection.to_bytes()?);
         buffer.extend(self.token_id.to_bytes()?);
         buffer.extend(self.auction_type.to_bytes()?);
@@ -93,7 +93,7 @@ impl ToBytes for Auction {
     }
 
     fn serialized_length(&self) -> usize {
-        self.maker.serialized_length()
+        self.offerer.serialized_length()
             + self.collection.serialized_length()
             + self.token_id.serialized_length()
             + self.auction_type.serialized_length()
@@ -113,7 +113,7 @@ impl ToBytes for Auction {
 
 impl FromBytes for Auction {
     fn from_bytes(bytes: &[u8]) -> Result<(Self, &[u8]), bytesrepr::Error> {
-        let (maker, bytes) = AccountHash::from_bytes(bytes)?;
+        let (offerer, bytes) = AccountHash::from_bytes(bytes)?;
         let (collection, bytes) = ContractHash::from_bytes(bytes)?;
         let (token_id, bytes) = U256::from_bytes(bytes)?;
         let (auction_type, bytes) = AuctionType::from_bytes(bytes)?;
@@ -123,7 +123,7 @@ impl FromBytes for Auction {
         let (bids, bytes) = Vec::<Bid>::from_bytes(bytes)?;
         Ok((
             Auction {
-                maker,
+                offerer,
                 collection,
                 token_id,
                 auction_type,

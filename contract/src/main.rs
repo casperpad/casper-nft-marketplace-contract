@@ -12,8 +12,7 @@ use alloc::{
     vec,
     vec::Vec,
 };
-use auction::{Auction, AuctionType};
-use bid::Bid;
+
 use casper_contract::{
     contract_api::{runtime, storage, system},
     unwrap_or_revert::UnwrapOrRevert,
@@ -33,29 +32,34 @@ use constants::{
 use detail::store_result;
 use error::Error;
 use event::Event;
-use icep47::ICEP47;
-use offer::Offer;
+use interfaces::icep47::ICEP47;
 use on_offers::OnOffer;
 use on_orders::OnOrder;
-use order::Order;
+use structs::{
+    auction::{Auction, AuctionType},
+    bid::{Bid, BidStatus},
+    offer::Offer,
+    order::Order,
+};
 
 mod address;
-mod auction;
-mod bid;
 mod constants;
 mod detail;
 mod entry_points;
 mod error;
 mod event;
 mod fee;
-mod icep47;
-mod offer;
+mod interfaces;
+mod lib;
 mod offers;
+mod on_auction;
 mod on_offers;
 mod on_orders;
-mod order;
+mod utils;
+
 mod orders;
 mod purse;
+mod structs;
 mod treasury_wallet;
 
 #[no_mangle]
@@ -109,7 +113,7 @@ pub extern "C" fn create_order() {
     on_orders.push((collection, token_id));
     on_orders::write_on_orders(on_orders);
 
-    let maker = runtime::get_caller();
+    let offerer = runtime::get_caller();
 
     let me = detail::get_caller_address()
         .unwrap()
@@ -145,13 +149,13 @@ pub extern "C" fn create_order() {
     let order = Order {
         collection,
         token_id,
-        maker,
+        offerer,
         price,
         is_active,
     };
     orders::write_order(order);
     event::emit(&Event::OrderCreated {
-        maker,
+        offerer,
         collection: collection.into(),
         token_id,
         price,
@@ -174,12 +178,12 @@ pub extern "C" fn cancel_order() {
     }
     let mut order = orders::read_order(collection, token_id);
     let caller = runtime::get_caller();
-    if caller != order.maker {
+    if caller != order.offerer {
         runtime::revert(Error::NotOrderMaker);
     }
 
     // Refund the token
-    ICEP47::new(order.collection).transfer(Key::from(order.maker), vec![order.token_id]);
+    ICEP47::new(order.collection).transfer(Key::from(order.offerer), vec![order.token_id]);
     order.is_active = false;
     orders::write_order(order);
 
@@ -189,7 +193,7 @@ pub extern "C" fn cancel_order() {
 
     store_result(order);
     event::emit(&Event::OrderCanceled {
-        maker: caller,
+        offerer: caller,
         collection: collection.into(),
         token_id,
     });
@@ -216,14 +220,14 @@ pub extern "C" fn buy_order() {
     }
 
     let caller = runtime::get_caller();
-    if caller != order.maker {
+    if caller != order.offerer {
         runtime::revert(Error::NotOrderMaker);
     }
 
     // Send NFT to caller
     ICEP47::new(order.collection).transfer(Key::from(caller), vec![order.token_id]);
-    // Send CSPR to order maker and treasury wallet
-    purse::transfer_with_fee(order.maker, order.price);
+    // Send CSPR to order offerer and treasury wallet
+    purse::transfer_with_fee(order.offerer, order.price);
 
     order.is_active = false;
 
@@ -232,7 +236,7 @@ pub extern "C" fn buy_order() {
     on_orders::write_on_orders(on_orders);
     orders::write_order(order);
     event::emit(&Event::OrderBought {
-        maker: caller,
+        offerer: caller,
         collection: collection.into(),
         token_id,
         price: order.price,
@@ -247,26 +251,27 @@ pub extern "C" fn create_offer() {
         ContractHash::new(collection_key.into_hash().unwrap())
     };
     let token_id: U256 = runtime::get_named_arg(TOKEN_ID_RUNTIME_ARG_NAME);
-    let maker = runtime::get_caller();
+    let offerer = runtime::get_caller();
     let price: U512 = runtime::get_named_arg(AMOUNT_RUNTIME_ARG_NAME);
     let bid_time = u64::from(runtime::get_blocktime());
 
     let bid = Bid {
-        maker,
+        offerer,
         price,
         bid_time,
+        status: BidStatus::Pending,
     };
 
     let mut offer = offers::read_offer(collection, token_id);
-    let find_result = on_offers::find(collection, token_id, maker);
+    let find_result = on_offers::find(collection, token_id, offerer);
 
     let mut on_offers = on_offers::read_on_offers();
     if find_result != None {
         // remove exist bid
-        let index = offer.get_bid_index_by_account(maker).unwrap();
+        let index = offer.get_bid_index_by_account(offerer).unwrap();
         offer.bids.remove(index);
     } else {
-        on_offers.push((collection, token_id, maker));
+        on_offers.push((collection, token_id, offerer));
     }
     offer.bids.push(bid);
 
@@ -275,7 +280,7 @@ pub extern "C" fn create_offer() {
     offers::write_offer(offer);
     on_offers::write_on_offers(on_offers);
     event::emit(&Event::OfferCreated {
-        maker,
+        offerer,
         collection: collection.into(),
         token_id,
         price,
@@ -289,20 +294,20 @@ pub extern "C" fn cancel_offer() {
         ContractHash::new(collection_key.into_hash().unwrap())
     };
     let token_id: U256 = runtime::get_named_arg(TOKEN_ID_RUNTIME_ARG_NAME);
-    let maker = runtime::get_caller();
+    let offerer = runtime::get_caller();
 
-    let find_result = on_offers::find(collection, token_id, maker);
+    let find_result = on_offers::find(collection, token_id, offerer);
 
     if find_result == None {
         runtime::revert(Error::OfferNotExist);
     }
 
     let mut offer = offers::read_offer(collection, token_id);
-    match offer.get_bid_index_by_account(maker) {
+    match offer.get_bid_index_by_account(offerer) {
         Some(index) => {
             let bid = offer.bids.get(index).unwrap();
             //Refund
-            purse::transfer(bid.maker, bid.price);
+            purse::transfer(bid.offerer, bid.price);
             offer.bids.remove(index);
             store_result(offer.clone());
             offers::write_offer(offer);
@@ -314,7 +319,7 @@ pub extern "C" fn cancel_offer() {
         None => runtime::revert(Error::PermissionDenied),
     };
     event::emit(&Event::OfferCanceled {
-        maker,
+        offerer,
         collection: collection.into(),
         token_id,
     });
@@ -343,14 +348,14 @@ pub extern "C" fn accept_offer() {
     purse::transfer_with_fee(caller, accepted_bid.price);
     ICEP47::new(collection).transfer_from(
         Key::from(caller),
-        Key::from(accepted_bid.maker),
+        Key::from(accepted_bid.offerer),
         vec![token_id],
     );
 
     offer.bids.remove(bid_id);
     offers::write_offer(offer);
     event::emit(&Event::OfferAccepted {
-        maker: caller,
+        offerer: caller,
         collection: collection.into(),
         token_id,
         price: accepted_bid.price,
@@ -374,7 +379,7 @@ pub extern "C" fn get_purse() {
 
 #[no_mangle]
 pub extern "C" fn create_auction() {
-    let maker = runtime::get_caller();
+    let offerer = runtime::get_caller();
     let collection: ContractHash = {
         let collection_key: Key = runtime::get_named_arg(COLLECTION_RUNTIME_ARG_NAME);
         ContractHash::new(collection_key.into_hash().unwrap())
@@ -389,7 +394,7 @@ pub extern "C" fn create_auction() {
     let end_time: Option<u64> = runtime::get_named_arg(END_TIME_RUNTIME_ARG_NAME);
     let bids: Vec<Bid> = Vec::new();
     let auction = Auction {
-        maker,
+        offerer,
         collection,
         token_id,
         auction_type,

@@ -5,43 +5,43 @@ use casper_types::{account::AccountHash, Key, URef, U256, U512};
 use crate::constants::{
     ACCEPT_OFFER_ENTRY_NAME, BUY_ORDER_ENTRY_NAME, CANCEL_OFFER_ENTRY_NAME,
     CANCEL_ORDER_ENTRY_NAME, COLLECTION_RUNTIME_ARG_NAME, CREATE_OFFER_ENTRY_NAME,
-    CREATE_ORDER_ENTRY_NAME, FEE_RUNTIME_ARG_NAME, MAKER_RUNTIME_ARG_NAME, PRICE_RUNTIME_ARG_NAME,
-    SET_FEE_ENTRY_NAME, SET_TREASURY_WALLET_ENTRY_NAME, TOKEN_ID_RUNTIME_ARG_NAME,
-    TREASURY_WALLET_RUNTIME_ARG_NAME,
+    CREATE_ORDER_ENTRY_NAME, FEE_RUNTIME_ARG_NAME, OFFERER_RUNTIME_ARG_NAME,
+    PRICE_RUNTIME_ARG_NAME, SET_FEE_ENTRY_NAME, SET_TREASURY_WALLET_ENTRY_NAME,
+    TOKEN_ID_RUNTIME_ARG_NAME, TREASURY_WALLET_RUNTIME_ARG_NAME,
 };
 
 pub enum Event {
     OrderCreated {
-        maker: AccountHash,
+        offerer: AccountHash,
         collection: Key,
         token_id: U256,
         price: U512,
     },
     OrderBought {
-        maker: AccountHash,
+        offerer: AccountHash,
         collection: Key,
         token_id: U256,
         price: U512,
     },
     OrderCanceled {
-        maker: AccountHash,
+        offerer: AccountHash,
         collection: Key,
         token_id: U256,
     },
     OfferCreated {
-        maker: AccountHash,
+        offerer: AccountHash,
         collection: Key,
         token_id: U256,
         price: U512,
     },
     OfferAccepted {
-        maker: AccountHash,
+        offerer: AccountHash,
         collection: Key,
         token_id: U256,
         price: U512,
     },
     OfferCanceled {
-        maker: AccountHash,
+        offerer: AccountHash,
         collection: Key,
         token_id: U256,
     },
@@ -57,82 +57,82 @@ pub(crate) fn emit(event: &Event) {
     let mut events = Vec::new();
     match event {
         Event::OrderCreated {
-            maker,
+            offerer,
             collection,
             token_id,
             price,
         } => {
             let mut param = BTreeMap::new();
             param.insert("event_type", CREATE_ORDER_ENTRY_NAME.to_string());
-            param.insert(MAKER_RUNTIME_ARG_NAME, maker.to_string());
+            param.insert(OFFERER_RUNTIME_ARG_NAME, offerer.to_string());
             param.insert(COLLECTION_RUNTIME_ARG_NAME, collection.to_string());
             param.insert(TOKEN_ID_RUNTIME_ARG_NAME, token_id.to_string());
             param.insert(PRICE_RUNTIME_ARG_NAME, price.to_string());
             events.push(param);
         }
         Event::OrderBought {
-            maker,
+            offerer,
             collection,
             token_id,
             price,
         } => {
             let mut param = BTreeMap::new();
             param.insert("event_type", BUY_ORDER_ENTRY_NAME.to_string());
-            param.insert(MAKER_RUNTIME_ARG_NAME, maker.to_string());
+            param.insert(OFFERER_RUNTIME_ARG_NAME, offerer.to_string());
             param.insert(COLLECTION_RUNTIME_ARG_NAME, collection.to_string());
             param.insert(TOKEN_ID_RUNTIME_ARG_NAME, token_id.to_string());
             param.insert(PRICE_RUNTIME_ARG_NAME, price.to_string());
             events.push(param);
         }
         Event::OrderCanceled {
-            maker,
+            offerer,
             collection,
             token_id,
         } => {
             let mut param = BTreeMap::new();
             param.insert("event_type", CANCEL_ORDER_ENTRY_NAME.to_string());
-            param.insert(MAKER_RUNTIME_ARG_NAME, maker.to_string());
+            param.insert(OFFERER_RUNTIME_ARG_NAME, offerer.to_string());
             param.insert(COLLECTION_RUNTIME_ARG_NAME, collection.to_string());
             param.insert(TOKEN_ID_RUNTIME_ARG_NAME, token_id.to_string());
 
             events.push(param);
         }
         Event::OfferCreated {
-            maker,
+            offerer,
             collection,
             token_id,
             price,
         } => {
             let mut param = BTreeMap::new();
             param.insert("event_type", CREATE_OFFER_ENTRY_NAME.to_string());
-            param.insert(MAKER_RUNTIME_ARG_NAME, maker.to_string());
+            param.insert(OFFERER_RUNTIME_ARG_NAME, offerer.to_string());
             param.insert(COLLECTION_RUNTIME_ARG_NAME, collection.to_string());
             param.insert(TOKEN_ID_RUNTIME_ARG_NAME, token_id.to_string());
             param.insert(PRICE_RUNTIME_ARG_NAME, price.to_string());
             events.push(param);
         }
         Event::OfferAccepted {
-            maker,
+            offerer,
             collection,
             token_id,
             price,
         } => {
             let mut param = BTreeMap::new();
             param.insert("event_type", ACCEPT_OFFER_ENTRY_NAME.to_string());
-            param.insert(MAKER_RUNTIME_ARG_NAME, maker.to_string());
+            param.insert(OFFERER_RUNTIME_ARG_NAME, offerer.to_string());
             param.insert(COLLECTION_RUNTIME_ARG_NAME, collection.to_string());
             param.insert(TOKEN_ID_RUNTIME_ARG_NAME, token_id.to_string());
             param.insert(PRICE_RUNTIME_ARG_NAME, price.to_string());
             events.push(param);
         }
         Event::OfferCanceled {
-            maker,
+            offerer,
             collection,
             token_id,
         } => {
             let mut param = BTreeMap::new();
             param.insert("event_type", CANCEL_OFFER_ENTRY_NAME.to_string());
-            param.insert(MAKER_RUNTIME_ARG_NAME, maker.to_string());
+            param.insert(OFFERER_RUNTIME_ARG_NAME, offerer.to_string());
             param.insert(COLLECTION_RUNTIME_ARG_NAME, collection.to_string());
             param.insert(TOKEN_ID_RUNTIME_ARG_NAME, token_id.to_string());
 
