@@ -12,8 +12,7 @@ use alloc::{
     vec,
     vec::Vec,
 };
-use auction::{Auction, AuctionType};
-use bid::Bid;
+
 use casper_contract::{
     contract_api::{runtime, storage, system},
     unwrap_or_revert::UnwrapOrRevert,
@@ -33,29 +32,33 @@ use constants::{
 use detail::store_result;
 use error::Error;
 use event::Event;
-use icep47::ICEP47;
-use offer::Offer;
+use interfaces::icep47::ICEP47;
 use on_offers::OnOffer;
 use on_orders::OnOrder;
-use order::Order;
+use structs::{
+    auction::{Auction, AuctionType},
+    bid::Bid,
+    offer::Offer,
+    order::Order,
+};
 
 mod address;
-mod auction;
-mod bid;
 mod constants;
 mod detail;
 mod entry_points;
 mod error;
 mod event;
 mod fee;
-mod icep47;
-mod offer;
+mod interfaces;
+mod lib;
 mod offers;
 mod on_offers;
 mod on_orders;
-mod order;
+mod utils;
+
 mod orders;
 mod purse;
+mod structs;
 mod treasury_wallet;
 
 #[no_mangle]

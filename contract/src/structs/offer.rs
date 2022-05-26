@@ -6,7 +6,7 @@ use casper_types::{
     CLType, CLTyped, ContractHash, U256,
 };
 
-use crate::bid::Bid;
+use super::bid::Bid;
 
 #[derive(Clone, Debug)]
 pub struct Offer {

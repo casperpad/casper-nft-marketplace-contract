@@ -5,7 +5,7 @@ use casper_types::{
     CLType, CLTyped, ContractHash, U256, U512,
 };
 
-use crate::bid::Bid;
+use super::bid::Bid;
 
 #[repr(u8)]
 #[derive(Copy, Clone, Debug)]
